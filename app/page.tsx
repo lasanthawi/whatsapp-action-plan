@@ -27,113 +27,121 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     redirect('/auth/sign-in');
   }
 
-  const [conversations, supabase] = await Promise.all([
-    fetchConversationSummaries(250),
-    pingSupabase(),
-  ]);
+  let conversations = [] as Awaited<ReturnType<typeof fetchConversationSummaries>>;
+  let supabase = { ok: false as const, error: 'Health check not run.' };
+  let dashboardError: string | null = null;
 
-  const selectedPhone =
-    searchParams?.phone || conversations[0]?.contact_phone || null;
+  try {
+    [conversations, supabase] = await Promise.all([
+      fetchConversationSummaries(250),
+      pingSupabase(),
+    ]);
+  } catch (error: any) {
+    dashboardError = error?.message || 'Failed to load inbox data.';
+  }
 
+  const selectedPhone = searchParams?.phone || conversations[0]?.contact_phone || null;
   const selectedConversation = conversations.find(
     (conversation) => conversation.contact_phone === selectedPhone
   );
 
-  const messages = selectedPhone ? await fetchMessagesByPhone(selectedPhone, 120) : [];
+  let messages = [] as Awaited<ReturnType<typeof fetchMessagesByPhone>>;
+  let threadError: string | null = null;
+
+  if (selectedPhone) {
+    try {
+      messages = await fetchMessagesByPhone(selectedPhone, 120);
+    } catch (error: any) {
+      threadError = error?.message || 'Failed to load this conversation.';
+    }
+  }
+
   const config = getConfigStatus();
+  const statusEntries = Object.entries(config);
+  const healthyConfigCount = statusEntries.filter(([, value]) => value).length;
 
   return (
-    <main className="shell">
-      <section className="hero">
-        <div>
-          <p className="eyebrow">Authenticated workspace</p>
-          <h1 className="hero-title">WhatsApp operations desk</h1>
-          <p className="hero-copy">
-            Review incoming conversations, monitor integration health, and reply
-            directly from the dashboard. Neon Auth now gates access to this page.
+    <main className="shell compact-shell">
+      <header className="topbar">
+        <div className="topbar-copy">
+          <p className="eyebrow">Operations desk</p>
+          <h1 className="topbar-title">WhatsApp inbox</h1>
+          <p className="topbar-subtitle">
+            Compact workspace for reviewing conversations, monitoring readiness,
+            and replying from your business number.
           </p>
         </div>
 
-        <div className="hero-panel">
-          <div>
-            <p className="meta-label">Signed in as</p>
-            <p className="meta-value">{session.user.name || session.user.email}</p>
-            <p className="meta-subtle">{session.user.email}</p>
+        <div className="topbar-actions">
+          <div className="user-chip">
+            <span className="user-chip-dot" />
+            <div>
+              <p className="user-chip-name">{session.user.name || session.user.email}</p>
+              <p className="user-chip-email">{session.user.email}</p>
+            </div>
           </div>
-
           <form action={signOutAction}>
             <button className="secondary-button" type="submit">
               Sign out
             </button>
           </form>
         </div>
+      </header>
+
+      <section className="summary-strip">
+        <article className="summary-card">
+          <p className="summary-label">Conversations</p>
+          <p className="summary-value">{conversations.length}</p>
+          <p className="summary-note">Sorted by latest activity</p>
+        </article>
+        <article className="summary-card">
+          <p className="summary-label">Selected thread</p>
+          <p className="summary-value summary-value-small">
+            {selectedConversation?.contact_name || 'None'}
+          </p>
+          <p className="summary-note">{selectedConversation?.contact_phone || 'Choose a chat'}</p>
+        </article>
+        <article className="summary-card">
+          <p className="summary-label">Thread messages</p>
+          <p className="summary-value">{messages.length}</p>
+          <p className="summary-note">Inbound + outbound history</p>
+        </article>
+        <article className="summary-card">
+          <p className="summary-label">System readiness</p>
+          <p className="summary-value">
+            {healthyConfigCount}/{statusEntries.length}
+          </p>
+          <p className="summary-note">{supabase.ok ? 'Supabase reachable' : 'Needs attention'}</p>
+        </article>
       </section>
 
-      <section className="stats-grid">
-        <article className="panel">
-          <div className="panel-header">
-            <h2 className="panel-title">Queue snapshot</h2>
-            <span className={`pill ${conversations.length > 0 ? 'pill-good' : 'pill-neutral'}`}>
-              {conversations.length} conversations
-            </span>
-          </div>
-          <div className="metric-grid">
-            <div>
-              <p className="metric-label">Active thread</p>
-              <p className="metric-big">
-                {selectedConversation?.contact_name || 'None selected'}
-              </p>
-            </div>
-            <div>
-              <p className="metric-label">Messages in thread</p>
-              <p className="metric-big">{messages.length}</p>
-            </div>
-            <div>
-              <p className="metric-label">Latest activity</p>
-              <p className="metric-small">
-                {selectedConversation?.last_message_at
-                  ? new Date(selectedConversation.last_message_at).toLocaleString()
-                  : 'No activity yet'}
-              </p>
-            </div>
-          </div>
-        </article>
-
-        <article className="panel">
-          <div className="panel-header">
-            <h2 className="panel-title">Integration health</h2>
-            <span className={`pill ${supabase.ok ? 'pill-good' : 'pill-bad'}`}>
-              {supabase.ok ? 'Connected' : 'Needs attention'}
-            </span>
-          </div>
-          <div className="status-grid">
-            {Object.entries(config).map(([key, value]) => (
-              <div className="status-card" key={key}>
-                <p className="status-key">{key}</p>
-                <p className={value ? 'status-ok' : 'status-bad'}>
-                  {value ? 'Present' : 'Missing'}
-                </p>
-              </div>
-            ))}
-          </div>
-          {!supabase.ok && supabase.error ? (
-            <p className="error-text">{supabase.error}</p>
+      {(dashboardError || threadError || searchParams?.error || searchParams?.sent) ? (
+        <section className="banner-stack">
+          {dashboardError ? <p className="banner banner-error">{dashboardError}</p> : null}
+          {threadError ? <p className="banner banner-error">{threadError}</p> : null}
+          {searchParams?.error ? (
+            <p className="banner banner-error">{decodeURIComponent(searchParams.error)}</p>
           ) : null}
-        </article>
-      </section>
+          {searchParams?.sent ? (
+            <p className="banner banner-success">Reply sent and recorded successfully.</p>
+          ) : null}
+        </section>
+      ) : null}
 
-      <section className="workspace">
-        <aside className="panel conversations-panel">
-          <div className="panel-header">
-            <h2 className="panel-title">Conversations</h2>
-            <span className="pill pill-neutral">Live inbox</span>
+      <section className="compact-grid">
+        <aside className="panel rail conversations-rail">
+          <div className="rail-head">
+            <div>
+              <h2 className="rail-title">Chats</h2>
+              <p className="rail-subtitle">Recent contacts and last messages</p>
+            </div>
+            <span className="pill pill-neutral">{conversations.length}</span>
           </div>
 
-          <div className="conversation-list">
+          <div className="conversation-list compact-list">
             {conversations.length === 0 ? (
               <p className="empty-state">
-                No conversations yet. Once WhatsApp messages land in Supabase,
-                they will appear here.
+                No chats yet. Incoming WhatsApp messages will appear here.
               </p>
             ) : (
               conversations.map((conversation) => {
@@ -164,109 +172,130 @@ export default async function DashboardPage({ searchParams }: PageProps) {
           </div>
         </aside>
 
-        <section className="chat-column">
-          <article className="panel thread-panel">
-            <div className="panel-header">
+        <section className="panel thread-surface">
+          <div className="thread-header">
+            <div>
+              <h2 className="thread-title">
+                {selectedConversation?.contact_name || 'Conversation'}
+              </h2>
+              <p className="thread-subtitle">
+                {selectedConversation?.contact_phone || 'Select a contact from the left'}
+              </p>
+            </div>
+            <span className="pill pill-neutral">
+              {messages.length} message{messages.length === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          <div className="thread compact-thread">
+            {messages.length === 0 ? (
+              <p className="empty-state">
+                This conversation is empty. Once you receive or send a message, it
+                will show up here.
+              </p>
+            ) : (
+              messages.map((message) => (
+                <div
+                  className={`bubble-row ${
+                    message.direction === 'outbound' ? 'bubble-row-outbound' : ''
+                  }`}
+                  key={message.id}
+                >
+                  <article
+                    className={`message-bubble ${
+                      message.direction === 'outbound'
+                        ? 'message-bubble-outbound'
+                        : 'message-bubble-inbound'
+                    }`}
+                  >
+                    <p className="bubble-label">
+                      {message.direction === 'outbound'
+                        ? 'Sent from dashboard'
+                        : message.contact_name || message.contact_phone}
+                    </p>
+                    <p className="bubble-body">{message.message_text || '(empty message)'}</p>
+                    <p className="bubble-time">
+                      {new Date(message.timestamp).toLocaleString()}
+                    </p>
+                  </article>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        <aside className="panel utility-rail">
+          <div className="rail-head">
+            <div>
+              <h2 className="rail-title">Reply</h2>
+              <p className="rail-subtitle">Send a message from the business account</p>
+            </div>
+            <span className="pill pill-neutral">Text only</span>
+          </div>
+
+          {selectedConversation ? (
+            <form action={sendReplyAction} className="composer-form compact-form">
+              <input name="to" type="hidden" value={selectedConversation.contact_phone} />
+              <input
+                name="contactName"
+                type="hidden"
+                value={selectedConversation.contact_name}
+              />
+              <label className="field">
+                To
+                <input
+                  className="input"
+                  disabled
+                  value={`${selectedConversation.contact_name} (${selectedConversation.contact_phone})`}
+                />
+              </label>
+              <label className="field">
+                Reply text
+                <textarea
+                  className="textarea compact-textarea"
+                  name="body"
+                  placeholder="Write a reply..."
+                  rows={7}
+                  required
+                />
+              </label>
+              <p className="helper-text">
+                Standard WhatsApp text replies work within the customer care
+                window. If Meta rejects the send, the reason will appear above.
+              </p>
+              <button className="primary-button" type="submit">
+                Send reply
+              </button>
+            </form>
+          ) : (
+            <p className="empty-state">Select a conversation to reply.</p>
+          )}
+
+          <div className="health-block">
+            <div className="rail-head rail-head-tight">
               <div>
-                <h2 className="panel-title">
-                  {selectedConversation?.contact_name || 'Select a conversation'}
-                </h2>
-                <p className="panel-subtitle">
-                  {selectedConversation?.contact_phone || 'Choose a thread from the left'}
-                </p>
+                <h2 className="rail-title">Readiness</h2>
+                <p className="rail-subtitle">Key configuration checks</p>
               </div>
-              <span className="pill pill-neutral">
-                {messages.length} message{messages.length === 1 ? '' : 's'}
+              <span className={`pill ${supabase.ok ? 'pill-good' : 'pill-bad'}`}>
+                {supabase.ok ? 'OK' : 'Issue'}
               </span>
             </div>
-
-            <div className="thread">
-              {messages.length === 0 ? (
-                <p className="empty-state">
-                  This thread has no messages yet. Incoming and outgoing text will
-                  show up here.
-                </p>
-              ) : (
-                messages.map((message) => (
-                  <div
-                    className={`bubble-row ${
-                      message.direction === 'outbound' ? 'bubble-row-outbound' : ''
-                    }`}
-                    key={message.id}
-                  >
-                    <article
-                      className={`message-bubble ${
-                        message.direction === 'outbound'
-                          ? 'message-bubble-outbound'
-                          : 'message-bubble-inbound'
-                      }`}
-                    >
-                      <p className="bubble-label">
-                        {message.direction === 'outbound'
-                          ? 'Sent from dashboard'
-                          : message.contact_name || message.contact_phone}
-                      </p>
-                      <p className="bubble-body">{message.message_text || '(empty message)'}</p>
-                      <p className="bubble-time">
-                        {new Date(message.timestamp).toLocaleString()}
-                      </p>
-                    </article>
-                  </div>
-                ))
-              )}
+            <div className="health-list">
+              {statusEntries.map(([key, value]) => (
+                <div className="health-item" key={key}>
+                  <span className="health-key">{key}</span>
+                  <span className={value ? 'status-ok' : 'status-bad'}>
+                    {value ? 'Present' : 'Missing'}
+                  </span>
+                </div>
+              ))}
             </div>
-          </article>
-
-          <article className="panel composer-panel">
-            <div className="panel-header">
-              <h2 className="panel-title">Reply</h2>
-              <span className="pill pill-neutral">WhatsApp send</span>
-            </div>
-
-            {searchParams?.error ? (
-              <p className="error-text">{decodeURIComponent(searchParams.error)}</p>
+            {!supabase.ok && supabase.error ? (
+              <p className="error-text compact-error">{supabase.error}</p>
             ) : null}
-            {searchParams?.sent ? (
-              <p className="success-text">Reply sent and stored successfully.</p>
-            ) : null}
-
-            {selectedConversation ? (
-              <form action={sendReplyAction} className="composer-form">
-                <input name="to" type="hidden" value={selectedConversation.contact_phone} />
-                <input
-                  name="contactName"
-                  type="hidden"
-                  value={selectedConversation.contact_name}
-                />
-                <label className="field">
-                  To
-                  <input
-                    className="input"
-                    disabled
-                    value={`${selectedConversation.contact_name} (${selectedConversation.contact_phone})`}
-                  />
-                </label>
-                <label className="field">
-                  Message
-                  <textarea
-                    className="textarea"
-                    name="body"
-                    placeholder="Write a reply that will be sent from your WhatsApp business number..."
-                    rows={5}
-                    required
-                  />
-                </label>
-                <button className="primary-button" type="submit">
-                  Send reply
-                </button>
-              </form>
-            ) : (
-              <p className="empty-state">
-                Select a conversation first to send a reply.
-              </p>
-            )}
-          </article>
-        </section>
+          </div>
+        </aside>
       </section>
     </main>
   );

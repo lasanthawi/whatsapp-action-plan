@@ -50,11 +50,18 @@ export async function sendReplyAction(formData: FormData) {
     redirect(`/?phone=${encodeURIComponent(to)}&error=${encodeURIComponent('Phone and message are required.')}`);
   }
 
-  await sendTextReply({
-    to,
-    body,
-    contactName: contactName || to,
-  });
+  try {
+    await sendTextReply({
+      to,
+      body,
+      contactName: contactName || to,
+    });
+  } catch (error: any) {
+    const message =
+      error?.message ||
+      'Reply failed. Check your WhatsApp sending configuration and the 24-hour messaging window.';
+    redirect(`/?phone=${encodeURIComponent(to)}&error=${encodeURIComponent(message)}`);
+  }
 
   revalidatePath('/');
   redirect(`/?phone=${encodeURIComponent(to)}&sent=1`);

@@ -173,12 +173,10 @@ export async function sendTextReply(input: {
     }
   );
 
-  const sendPayload = await sendResponse.json();
+  const sendPayload = await safeJson(sendResponse);
 
   if (!sendResponse.ok) {
-    throw new Error(
-      `WhatsApp send failed: ${JSON.stringify(sendPayload)}`
-    );
+    throw new Error(formatWhatsAppError(sendPayload));
   }
 
   const externalMessageId =
@@ -203,6 +201,34 @@ export async function sendTextReply(input: {
     storedCount: stored.length,
     raw: sendPayload,
   };
+}
+
+function formatWhatsAppError(payload: any) {
+  const graphError = payload?.error;
+
+  if (!graphError) {
+    return 'Reply failed. WhatsApp returned an unknown error.';
+  }
+
+  if (typeof graphError.message === 'string') {
+    return `Reply failed: ${graphError.message}`;
+  }
+
+  return 'Reply failed. WhatsApp rejected the message.';
+}
+
+async function safeJson(response: Response) {
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
 }
 
 export function extractInboundMessages(payload: WhatsAppWebhookPayload): StoredMessage[] {
