@@ -140,6 +140,10 @@ textarea {
   margin-bottom: 18px;
 }
 
+.auth-grid-single {
+  max-width: 620px;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
@@ -436,6 +440,12 @@ textarea {
 
 .auth-footer {
   margin-top: 18px;
+}
+
+.auth-note {
+  margin: 14px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 .auth-footer a {
