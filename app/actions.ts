@@ -20,7 +20,8 @@ export async function signInAction(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/auth/sign-in?mode=sign-in&error=${encodeURIComponent(error.message)}`);
+    const message = error.message || 'Unable to sign in.';
+    redirect(`/auth/sign-in?mode=sign-in&error=${encodeURIComponent(message)}`);
   }
 
   redirect('/');
@@ -38,7 +39,8 @@ export async function signUpAction(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/auth/sign-in?mode=sign-up&error=${encodeURIComponent(error.message)}`);
+    const message = error.message || 'Unable to create account.';
+    redirect(`/auth/sign-in?mode=sign-up&error=${encodeURIComponent(message)}`);
   }
 
   redirect('/');
