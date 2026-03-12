@@ -24,28 +24,39 @@ export type StoredMessage = {
   timestamp: string;
   contact_phone: string;
   contact_name: string;
-  direction: 'inbound';
+  direction: 'inbound' | 'outbound';
   message_text: string;
   message_type: string;
   raw_payload: Record<string, any>;
   meta_phone_number_id: string | null;
 };
 
-export type RecentMessageRow = {
+export type MessageRow = {
   id: string;
   timestamp: string;
   external_message_id?: string | null;
   contact_phone: string;
   contact_name: string | null;
-  direction: string;
+  direction: 'inbound' | 'outbound';
   message_text: string | null;
   message_type: string | null;
   meta_phone_number_id?: string | null;
   created_at?: string | null;
 };
 
+export type ConversationSummary = {
+  contact_phone: string;
+  contact_name: string;
+  last_message_text: string;
+  last_message_at: string;
+  last_direction: 'inbound' | 'outbound';
+  message_count: number;
+};
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_ID;
+const WHATSAPP_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
 
 export function getConfigStatus() {
   return {
@@ -57,85 +68,141 @@ export function getConfigStatus() {
     whatsappRecipient: Boolean(process.env.WHATSAPP_RECIPIENT_PHONE),
     openAiKey: Boolean(process.env.OPENAI_API_KEY),
     cronSecret: Boolean(process.env.CRON_SECRET),
+    neonAuthBaseUrl: Boolean(process.env.NEON_AUTH_BASE_URL),
+    neonAuthCookieSecret: Boolean(process.env.NEON_AUTH_COOKIE_SECRET),
   };
 }
 
 export async function insertInboundMessages(messages: StoredMessage[]) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('Missing Supabase configuration');
-  }
-
   if (messages.length === 0) {
     return [];
   }
 
-  const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/whatsapp_messages?on_conflict=external_message_id`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        Prefer: 'resolution=merge-duplicates,return=representation',
-      },
-      body: JSON.stringify(messages),
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Supabase insert failed: ${errorText}`);
-  }
-
-  return (await response.json()) as Array<{ external_message_id: string }>;
+  return insertMessages(messages);
 }
 
 export async function fetchRecentMessages(limit = 20) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('Missing Supabase configuration');
-  }
-
-  const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/whatsapp_messages?select=id,timestamp,external_message_id,contact_phone,contact_name,direction,message_text,message_type,meta_phone_number_id,created_at&order=timestamp.desc&limit=${limit}`,
-    {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-      },
-      cache: 'no-store',
-    }
+  const response = await supabaseFetch(
+    `/rest/v1/whatsapp_messages?select=id,timestamp,external_message_id,contact_phone,contact_name,direction,message_text,message_type,meta_phone_number_id,created_at&order=timestamp.desc&limit=${limit}`
   );
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Supabase fetch failed: ${errorText}`);
+  return (await response.json()) as MessageRow[];
+}
+
+export async function fetchMessagesByPhone(contactPhone: string, limit = 100) {
+  const response = await supabaseFetch(
+    `/rest/v1/whatsapp_messages?select=id,timestamp,external_message_id,contact_phone,contact_name,direction,message_text,message_type,meta_phone_number_id,created_at&contact_phone=eq.${encodeURIComponent(
+      contactPhone
+    )}&order=timestamp.asc&limit=${limit}`
+  );
+
+  return (await response.json()) as MessageRow[];
+}
+
+export async function fetchConversationSummaries(limit = 200) {
+  const messages = await fetchRecentMessages(limit);
+  const grouped = new Map<string, ConversationSummary>();
+
+  for (const message of messages) {
+    const existing = grouped.get(message.contact_phone);
+
+    if (!existing) {
+      grouped.set(message.contact_phone, {
+        contact_phone: message.contact_phone,
+        contact_name: message.contact_name || message.contact_phone,
+        last_message_text: message.message_text || '',
+        last_message_at: message.timestamp,
+        last_direction: message.direction,
+        message_count: 1,
+      });
+      continue;
+    }
+
+    existing.message_count += 1;
+
+    if (new Date(message.timestamp).getTime() > new Date(existing.last_message_at).getTime()) {
+      existing.last_message_at = message.timestamp;
+      existing.last_message_text = message.message_text || '';
+      existing.last_direction = message.direction;
+      existing.contact_name = message.contact_name || existing.contact_name;
+    }
   }
 
-  return (await response.json()) as RecentMessageRow[];
+  return Array.from(grouped.values()).sort(
+    (left, right) =>
+      new Date(right.last_message_at).getTime() - new Date(left.last_message_at).getTime()
+  );
 }
 
 export async function pingSupabase() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    return { ok: false, error: 'Missing Supabase configuration' };
+  try {
+    await supabaseFetch('/rest/v1/whatsapp_messages?select=id&limit=1');
+    return { ok: true as const };
+  } catch (error: any) {
+    return { ok: false as const, error: error.message };
+  }
+}
+
+export async function sendTextReply(input: {
+  to: string;
+  body: string;
+  contactName?: string | null;
+}) {
+  if (!WHATSAPP_PHONE_ID || !WHATSAPP_TOKEN) {
+    throw new Error('Missing WhatsApp sending configuration');
   }
 
-  const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/whatsapp_messages?select=id&limit=1`,
+  const sendResponse = await fetch(
+    `https://graph.facebook.com/v22.0/${WHATSAPP_PHONE_ID}/messages`,
     {
+      method: 'POST',
       headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json',
       },
-      cache: 'no-store',
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: input.to,
+        type: 'text',
+        text: {
+          preview_url: false,
+          body: input.body,
+        },
+      }),
     }
   );
 
-  if (!response.ok) {
-    return { ok: false, error: await response.text() };
+  const sendPayload = await sendResponse.json();
+
+  if (!sendResponse.ok) {
+    throw new Error(
+      `WhatsApp send failed: ${JSON.stringify(sendPayload)}`
+    );
   }
 
-  return { ok: true as const };
+  const externalMessageId =
+    sendPayload.messages?.[0]?.id ?? `outbound-${Date.now()}`;
+
+  const stored = await insertMessages([
+    {
+      external_message_id: externalMessageId,
+      timestamp: new Date().toISOString(),
+      contact_phone: input.to,
+      contact_name: input.contactName || input.to,
+      direction: 'outbound',
+      message_text: input.body,
+      message_type: 'text',
+      raw_payload: sendPayload,
+      meta_phone_number_id: WHATSAPP_PHONE_ID,
+    },
+  ]);
+
+  return {
+    externalMessageId,
+    storedCount: stored.length,
+    raw: sendPayload,
+  };
 }
 
 export function extractInboundMessages(payload: WhatsAppWebhookPayload): StoredMessage[] {
@@ -249,6 +316,42 @@ export function createSamplePayload(input: {
       },
     ],
   };
+}
+
+async function insertMessages(messages: StoredMessage[]) {
+  const response = await supabaseFetch('/rest/v1/whatsapp_messages?on_conflict=external_message_id', {
+    method: 'POST',
+    headers: {
+      Prefer: 'resolution=merge-duplicates,return=representation',
+    },
+    body: JSON.stringify(messages),
+  });
+
+  return (await response.json()) as Array<{ external_message_id: string }>;
+}
+
+async function supabaseFetch(path: string, init?: RequestInit) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    throw new Error('Missing Supabase configuration');
+  }
+
+  const response = await fetch(`${SUPABASE_URL}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      ...(init?.headers || {}),
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Supabase fetch failed: ${errorText}`);
+  }
+
+  return response;
 }
 
 function buildContactsMap(

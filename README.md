@@ -33,6 +33,12 @@ Use the same `WHATSAPP_VERIFY_TOKEN` value in Meta during webhook verification.
 ## Environment Variables
 See `.env.example` for all required variables.
 
+### Auth Setup
+- `NEON_AUTH_BASE_URL` - Your Neon Auth base URL
+- `NEON_AUTH_COOKIE_SECRET` - A strong secret used to sign cached auth cookies
+- `GET/POST /api/auth/[...path]` is used by the Neon Auth integration
+- The dashboard root `/` is protected and redirects to `/auth/sign-in`
+
 ## API Endpoints
 - `POST /api/whatsapp/webhook` - Receives WhatsApp webhooks
 - `GET /api/cron/daily-analyzer` - Daily analysis (Vercel Cron)
@@ -44,5 +50,6 @@ See `.env.example` for all required variables.
 ## Notes
 - The webhook now supports Meta verification via `GET /api/whatsapp/webhook`
 - Incoming messages are deduplicated using WhatsApp's external message ID
+- The root dashboard is an authenticated inbox for reviewing and replying to chats
 
 Deployed on Vercel | Database on Supabase | Powered by Composio + OpenAI
