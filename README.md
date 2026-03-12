@@ -40,6 +40,10 @@ See `.env.example` for all required variables.
 - The dashboard root `/` is protected and redirects to `/auth/sign-in`
 - User signup is disabled in the app UI; create/manage users from Neon Auth
 
+## WhatsApp agent permissions
+
+If the auto-reply agent fails with **(#10) Application does not have permission**, the access token needs `whatsapp_business_management` and `whatsapp_business_messaging`. Generate a System User token with those permissions and set it as `WHATSAPP_ACCESS_TOKEN`. In development, add recipients as test numbers in WhatsApp API Setup. See [docs/whatsapp-agent-permissions.md](docs/whatsapp-agent-permissions.md).
+
 ## API Endpoints
 - `POST /api/whatsapp/webhook` - Receives WhatsApp webhooks
 - `GET /api/cron/daily-analyzer` - Daily analysis (Vercel Cron)

@@ -218,6 +218,18 @@ function formatWhatsAppError(payload: any) {
 
   const message =
     typeof graphError.message === 'string' ? graphError.message : '';
+  const code = graphError.code;
+
+  if (code === 10 || /permission for this action/i.test(message)) {
+    return [
+      'Reply failed: Application does not have permission (Meta error #10).',
+      'Grant the app permission to send messages:',
+      '1. Meta for Developers → Your App → App Dashboard.',
+      '2. Add/request permissions: whatsapp_business_management, whatsapp_business_messaging.',
+      '3. Business Settings → Users → System Users → Generate token for your app with those permissions.',
+      '4. Use that token as WHATSAPP_ACCESS_TOKEN. In development, add recipient as test number in WhatsApp → API Setup.',
+    ].join(' ');
+  }
 
   if (/access token/i.test(message) && /expired/i.test(message)) {
     return 'Reply failed: your WhatsApp access token has expired. Generate a new token in Meta and update WHATSAPP_ACCESS_TOKEN in Vercel.';
