@@ -24,60 +24,73 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
   return (
     <main className="auth-shell">
-      <section className="auth-hero">
-        <p className="eyebrow">Neon Auth protected</p>
-        <h1 className="auth-title">Sign in to the WhatsApp desk</h1>
-        <p className="auth-copy">
-          This dashboard is now private. Use your Neon Auth account to open the
-          inbox, review conversations, and send replies from the business number.
-        </p>
-      </section>
+      <section className="auth-frame">
+        <article className="auth-hero">
+          <p className="auth-kicker">Operator access</p>
+          <h1 className="auth-title">Run your WhatsApp desk from one professional workspace.</h1>
+          <p className="auth-copy">
+            Review inbound chats, respond from the business number, and keep the
+            whole messaging workflow organized behind a private sign-in.
+          </p>
 
-      <section className="auth-grid auth-grid-single">
+          <div className="auth-feature-list">
+            <div className="auth-feature">
+              <strong>Inbox-first workflow</strong>
+              <span>Compact conversations, thread history, and reply tools</span>
+            </div>
+            <div className="auth-feature">
+              <strong>Operational visibility</strong>
+              <span>See integration health before messages start failing</span>
+            </div>
+            <div className="auth-feature">
+              <strong>Controlled access</strong>
+              <span>Sign-in only, with account creation managed in Neon Auth</span>
+            </div>
+          </div>
+        </article>
+
         <article className="auth-card">
-          <div className="panel-header">
-            <h2 className="panel-title">Sign in</h2>
-            <span className="pill pill-good">Admin access</span>
+          <div className="auth-card-head">
+            <p className="section-label">Sign in</p>
+            <h2 className="auth-card-title">Admin access</h2>
+            <p className="auth-card-copy">
+              Use the credentials for an account already created in Neon Auth.
+            </p>
           </div>
 
           <form action={signInAction} className="auth-form">
-            <label className="field">
+            <label className="auth-field">
               Email
               <input
                 autoComplete="email"
-                className="input"
+                className="auth-input"
                 name="email"
                 type="email"
                 required
               />
             </label>
-            <label className="field">
+            <label className="auth-field">
               Password
               <input
                 autoComplete="current-password"
-                className="input"
+                className="auth-input"
                 name="password"
                 type="password"
                 required
               />
             </label>
-            <button className="primary-button" type="submit">
+            <button className="sign-in-button" type="submit">
               Sign in
             </button>
           </form>
-          <p className="auth-note">
-            Account creation is disabled in the app UI. Manage users directly in
-            Neon Auth.
+
+          {error ? <p className="auth-error">{error}</p> : null}
+
+          <p className="auth-footer">
+            If you were redirected unexpectedly, try <Link href="/">opening the dashboard again</Link>.
           </p>
         </article>
       </section>
-
-      {error ? <p className="auth-error">{error}</p> : null}
-
-      <p className="auth-footer">
-        If you already signed in elsewhere and got redirected here, try{' '}
-        <Link href="/">opening the dashboard again</Link>.
-      </p>
     </main>
   );
 }

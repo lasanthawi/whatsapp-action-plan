@@ -60,112 +60,74 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   }
 
   const config = getConfigStatus();
-  const statusEntries = Object.entries(config);
-  const healthyConfigCount = statusEntries.filter(([, value]) => value).length;
+  const operationalChecks = [
+    ['Supabase', config.supabaseUrl && config.supabaseKey],
+    ['WhatsApp', config.phoneId && config.whatsappToken && config.verifyToken],
+    ['OpenAI', config.openAiKey],
+    ['Neon Auth', config.neonAuthBaseUrl && config.neonAuthCookieSecret],
+  ] as const;
 
   return (
-    <main className="shell compact-shell">
-      <header className="topbar">
-        <div className="topbar-copy">
-          <p className="eyebrow">Operations desk</p>
-          <h1 className="topbar-title">WhatsApp inbox</h1>
-          <p className="topbar-subtitle">
-            Compact workspace for reviewing conversations, monitoring readiness,
-            and replying from your business number.
-          </p>
+    <main className="workspace-shell">
+      <aside className="app-sidebar">
+        <div className="sidebar-brand">
+          <div className="brand-mark">W</div>
+          <div>
+            <p className="sidebar-kicker">Private workspace</p>
+            <h1 className="sidebar-title">WhatsApp Desk</h1>
+            <p className="sidebar-subtitle">Conversations, replies, and operational visibility.</p>
+          </div>
         </div>
 
-        <div className="topbar-actions">
-          <div className="user-chip">
-            <span className="user-chip-dot" />
-            <div>
-              <p className="user-chip-name">{session.user.name || session.user.email}</p>
-              <p className="user-chip-email">{session.user.email}</p>
+        <div className="sidebar-block">
+          <p className="section-label">Overview</p>
+          <div className="sidebar-metrics">
+            <div className="sidebar-metric">
+              <span className="sidebar-metric-value">{conversations.length}</span>
+              <span className="sidebar-metric-label">Active chats</span>
+            </div>
+            <div className="sidebar-metric">
+              <span className="sidebar-metric-value">{messages.length}</span>
+              <span className="sidebar-metric-label">Messages loaded</span>
             </div>
           </div>
-          <form action={signOutAction}>
-            <button className="secondary-button" type="submit">
-              Sign out
-            </button>
-          </form>
         </div>
-      </header>
 
-      <section className="summary-strip">
-        <article className="summary-card">
-          <p className="summary-label">Conversations</p>
-          <p className="summary-value">{conversations.length}</p>
-          <p className="summary-note">Sorted by latest activity</p>
-        </article>
-        <article className="summary-card">
-          <p className="summary-label">Selected thread</p>
-          <p className="summary-value summary-value-small">
-            {selectedConversation?.contact_name || 'None'}
-          </p>
-          <p className="summary-note">{selectedConversation?.contact_phone || 'Choose a chat'}</p>
-        </article>
-        <article className="summary-card">
-          <p className="summary-label">Thread messages</p>
-          <p className="summary-value">{messages.length}</p>
-          <p className="summary-note">Inbound + outbound history</p>
-        </article>
-        <article className="summary-card">
-          <p className="summary-label">System readiness</p>
-          <p className="summary-value">
-            {healthyConfigCount}/{statusEntries.length}
-          </p>
-          <p className="summary-note">{supabase.ok ? 'Supabase reachable' : 'Needs attention'}</p>
-        </article>
-      </section>
-
-      {(dashboardError || threadError || searchParams?.error || searchParams?.sent) ? (
-        <section className="banner-stack">
-          {dashboardError ? <p className="banner banner-error">{dashboardError}</p> : null}
-          {threadError ? <p className="banner banner-error">{threadError}</p> : null}
-          {searchParams?.error ? (
-            <p className="banner banner-error">{decodeURIComponent(searchParams.error)}</p>
-          ) : null}
-          {searchParams?.sent ? (
-            <p className="banner banner-success">Reply sent and recorded successfully.</p>
-          ) : null}
-        </section>
-      ) : null}
-
-      <section className="compact-grid">
-        <aside className="panel rail conversations-rail">
-          <div className="rail-head">
+        <div className="sidebar-block sidebar-block-fill">
+          <div className="block-head">
             <div>
-              <h2 className="rail-title">Chats</h2>
-              <p className="rail-subtitle">Recent contacts and last messages</p>
+              <p className="section-label">Inbox</p>
+              <p className="block-copy">Recent conversations</p>
             </div>
-            <span className="pill pill-neutral">{conversations.length}</span>
+            <span className="badge neutral">{conversations.length}</span>
           </div>
 
-          <div className="conversation-list compact-list">
+          <div className="conversation-stack">
             {conversations.length === 0 ? (
-              <p className="empty-state">
-                No chats yet. Incoming WhatsApp messages will appear here.
-              </p>
+              <div className="empty-card">
+                <p className="empty-title">No conversations yet</p>
+                <p className="empty-copy">
+                  Inbound WhatsApp messages will appear here as soon as they arrive.
+                </p>
+              </div>
             ) : (
               conversations.map((conversation) => {
-                const isActive =
+                const active =
                   selectedConversation?.contact_phone === conversation.contact_phone;
 
                 return (
                   <Link
-                    className={`conversation-link ${isActive ? 'conversation-link-active' : ''}`}
-                    href={`/?phone=${encodeURIComponent(conversation.contact_phone)}`}
                     key={conversation.contact_phone}
+                    href={`/?phone=${encodeURIComponent(conversation.contact_phone)}`}
+                    className={`conversation-card ${active ? 'conversation-card-active' : ''}`}
                   >
-                    <div className="conversation-topline">
+                    <div className="conversation-card-top">
                       <strong>{conversation.contact_name}</strong>
                       <span>{new Date(conversation.last_message_at).toLocaleDateString()}</span>
                     </div>
-                    <p className="conversation-phone">{conversation.contact_phone}</p>
-                    <p className="conversation-preview">
-                      <span className="conversation-direction">
-                        {conversation.last_direction === 'outbound' ? 'You' : 'Them'}:
-                      </span>{' '}
+                    <p className="conversation-card-phone">{conversation.contact_phone}</p>
+                    <p className="conversation-card-preview">
+                      <span>{conversation.last_direction === 'outbound' ? 'You' : 'Them'}</span>
                       {conversation.last_message_text || '(empty message)'}
                     </p>
                   </Link>
@@ -173,71 +135,119 @@ export default async function DashboardPage({ searchParams }: PageProps) {
               })
             )}
           </div>
-        </aside>
+        </div>
 
-        <section className="panel thread-surface">
-          <div className="thread-header">
-            <div>
-              <h2 className="thread-title">
-                {selectedConversation?.contact_name || 'Conversation'}
-              </h2>
-              <p className="thread-subtitle">
-                {selectedConversation?.contact_phone || 'Select a contact from the left'}
-              </p>
+        <div className="sidebar-operator">
+          <div className="operator-card">
+            <div className="operator-avatar">
+              {(session.user.name || session.user.email || 'U').charAt(0).toUpperCase()}
             </div>
-            <span className="pill pill-neutral">
-              {messages.length} message{messages.length === 1 ? '' : 's'}
-            </span>
+            <div>
+              <p className="operator-name">{session.user.name || session.user.email}</p>
+              <p className="operator-email">{session.user.email}</p>
+            </div>
           </div>
 
-          <div className="thread compact-thread">
-            {messages.length === 0 ? (
-              <p className="empty-state">
-                This conversation is empty. Once you receive or send a message, it
-                will show up here.
+          <form action={signOutAction}>
+            <button className="ghost-button" type="submit">
+              Sign out
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <section className="main-column">
+        <header className="main-header">
+          <div>
+            <p className="section-label">Conversation</p>
+            <h2 className="main-title">
+              {selectedConversation?.contact_name || 'Select a conversation'}
+            </h2>
+            <p className="main-subtitle">
+              {selectedConversation?.contact_phone ||
+                'Choose a chat on the left to open its full message history.'}
+            </p>
+          </div>
+
+          <div className="header-statuses">
+            <div className="header-status">
+              <span className="header-status-value">{messages.length}</span>
+              <span className="header-status-label">messages</span>
+            </div>
+            <div className={`header-status ${supabase.ok ? 'header-status-good' : 'header-status-bad'}`}>
+              <span className="header-status-value">{supabase.ok ? 'Live' : 'Issue'}</span>
+              <span className="header-status-label">system</span>
+            </div>
+          </div>
+        </header>
+
+        {(dashboardError || threadError || searchParams?.error || searchParams?.sent) ? (
+          <section className="alert-stack">
+            {dashboardError ? <p className="alert alert-error">{dashboardError}</p> : null}
+            {threadError ? <p className="alert alert-error">{threadError}</p> : null}
+            {searchParams?.error ? (
+              <p className="alert alert-error">{decodeURIComponent(searchParams.error)}</p>
+            ) : null}
+            {searchParams?.sent ? (
+              <p className="alert alert-success">Reply sent and stored successfully.</p>
+            ) : null}
+          </section>
+        ) : null}
+
+        <section className="thread-panel">
+          {messages.length === 0 ? (
+            <div className="empty-thread">
+              <p className="empty-title">No message history loaded</p>
+              <p className="empty-copy">
+                Once messages exist for the selected contact, they will appear here in
+                chronological order.
               </p>
-            ) : (
-              messages.map((message) => (
+            </div>
+          ) : (
+            <div className="message-list">
+              {messages.map((message) => (
                 <div
-                  className={`bubble-row ${
-                    message.direction === 'outbound' ? 'bubble-row-outbound' : ''
+                  className={`message-row ${
+                    message.direction === 'outbound' ? 'message-row-outbound' : ''
                   }`}
                   key={message.id}
                 >
                   <article
-                    className={`message-bubble ${
+                    className={`message-card ${
                       message.direction === 'outbound'
-                        ? 'message-bubble-outbound'
-                        : 'message-bubble-inbound'
+                        ? 'message-card-outbound'
+                        : 'message-card-inbound'
                     }`}
                   >
-                    <p className="bubble-label">
-                      {message.direction === 'outbound'
-                        ? 'Sent from dashboard'
-                        : message.contact_name || message.contact_phone}
-                    </p>
-                    <p className="bubble-body">{message.message_text || '(empty message)'}</p>
-                    <p className="bubble-time">
-                      {new Date(message.timestamp).toLocaleString()}
-                    </p>
+                    <div className="message-card-meta">
+                      <span>
+                        {message.direction === 'outbound'
+                          ? 'Sent from dashboard'
+                          : message.contact_name || message.contact_phone}
+                      </span>
+                      <time>{new Date(message.timestamp).toLocaleString()}</time>
+                    </div>
+                    <p className="message-card-body">{message.message_text || '(empty message)'}</p>
                   </article>
                 </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        <aside className="panel utility-rail">
-          <div className="rail-head">
-            <div>
-              <h2 className="rail-title">Reply</h2>
-              <p className="rail-subtitle">Send a message from the business account</p>
+              ))}
             </div>
-            <span className="pill pill-neutral">Text only</span>
+          )}
+        </section>
+      </section>
+
+      <aside className="detail-column">
+        <section className="detail-card">
+          <div className="block-head">
+            <div>
+              <p className="section-label">Reply</p>
+              <h3 className="detail-title">Compose response</h3>
+            </div>
+            <span className="badge neutral">Text only</span>
           </div>
 
           {selectedConversation ? (
-            <form action={sendReplyAction} className="composer-form compact-form">
+            <form action={sendReplyAction} className="reply-form">
               <input name="to" type="hidden" value={selectedConversation.contact_phone} />
               <input
                 name="contactName"
@@ -245,61 +255,66 @@ export default async function DashboardPage({ searchParams }: PageProps) {
                 value={selectedConversation.contact_name}
               />
               <label className="field">
-                To
+                Recipient
                 <input
-                  className="input"
+                  className="field-input"
                   disabled
                   value={`${selectedConversation.contact_name} (${selectedConversation.contact_phone})`}
                 />
               </label>
               <label className="field">
-                Reply text
+                Message
                 <textarea
-                  className="textarea compact-textarea"
+                  className="field-textarea"
                   name="body"
-                  placeholder="Write a reply..."
-                  rows={7}
+                  placeholder="Write a natural reply..."
+                  rows={9}
                   required
                 />
               </label>
-              <p className="helper-text">
-                Standard WhatsApp text replies work within the customer care
-                window. If Meta rejects the send, the reason will appear above.
+              <p className="helper-copy">
+                If a send fails, the exact reason will appear above. Token expiry and
+                care-window issues are now surfaced clearly.
               </p>
               <button className="primary-button" type="submit">
                 Send reply
               </button>
             </form>
           ) : (
-            <p className="empty-state">Select a conversation to reply.</p>
+            <div className="empty-card">
+              <p className="empty-title">No active chat selected</p>
+              <p className="empty-copy">Choose a conversation to reply from this panel.</p>
+            </div>
           )}
+        </section>
 
-          <div className="health-block">
-            <div className="rail-head rail-head-tight">
-              <div>
-                <h2 className="rail-title">Readiness</h2>
-                <p className="rail-subtitle">Key configuration checks</p>
-              </div>
-              <span className={`pill ${supabase.ok ? 'pill-good' : 'pill-bad'}`}>
-                {supabase.ok ? 'OK' : 'Issue'}
-              </span>
+        <section className="detail-card">
+          <div className="block-head">
+            <div>
+              <p className="section-label">System</p>
+              <h3 className="detail-title">Operational checks</h3>
             </div>
-            <div className="health-list">
-              {statusEntries.map(([key, value]) => (
-                <div className="health-item" key={key}>
-                  <span className="health-key">{key}</span>
-                  <span className={value ? 'status-ok' : 'status-bad'}>
-                    {value ? 'Present' : 'Missing'}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {!supabase.ok && supabase.error ? (
-              <p className="error-text compact-error">{supabase.error}</p>
-            ) : null}
+            <span className={`badge ${supabase.ok ? 'good' : 'bad'}`}>
+              {supabase.ok ? 'Healthy' : 'Attention'}
+            </span>
           </div>
-        </aside>
-      </section>
+
+          <div className="check-list">
+            {operationalChecks.map(([label, ok]) => (
+              <div className="check-item" key={label}>
+                <span>{label}</span>
+                <span className={ok ? 'state-good' : 'state-bad'}>
+                  {ok ? 'Ready' : 'Missing'}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {!supabase.ok && supabase.error ? (
+            <p className="compact-error">{supabase.error}</p>
+          ) : null}
+        </section>
+      </aside>
     </main>
   );
 }

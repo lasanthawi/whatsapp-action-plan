@@ -210,8 +210,23 @@ function formatWhatsAppError(payload: any) {
     return 'Reply failed. WhatsApp returned an unknown error.';
   }
 
-  if (typeof graphError.message === 'string') {
-    return `Reply failed: ${graphError.message}`;
+  const message =
+    typeof graphError.message === 'string' ? graphError.message : '';
+
+  if (/access token/i.test(message) && /expired/i.test(message)) {
+    return 'Reply failed: your WhatsApp access token has expired. Generate a new token in Meta and update WHATSAPP_ACCESS_TOKEN in Vercel.';
+  }
+
+  if (/24-hour|outside the allowed window|customer care window/i.test(message)) {
+    return 'Reply failed: this chat is outside the WhatsApp customer care window. Use an approved template message or wait for the user to message you again.';
+  }
+
+  if (/recipient/i.test(message) && /not/i.test(message)) {
+    return 'Reply failed: Meta rejected the recipient phone number. Check the phone number format and your WhatsApp setup.';
+  }
+
+  if (message) {
+    return `Reply failed: ${message}`;
   }
 
   return 'Reply failed. WhatsApp rejected the message.';
