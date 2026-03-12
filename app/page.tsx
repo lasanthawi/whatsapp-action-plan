@@ -28,7 +28,10 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   }
 
   let conversations = [] as Awaited<ReturnType<typeof fetchConversationSummaries>>;
-  let supabase = { ok: false as const, error: 'Health check not run.' };
+  let supabase: Awaited<ReturnType<typeof pingSupabase>> = {
+    ok: false,
+    error: 'Health check not run.',
+  };
   let dashboardError: string | null = null;
 
   try {
