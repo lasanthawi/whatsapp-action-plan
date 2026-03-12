@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import {
+  buildConversationTurns,
+  generateAgentReply,
+  isAgentEnabled,
+} from '@/lib/chat-agent';
+import {
   countStatuses,
   countWebhookMessages,
   extractInboundMessages,
+  fetchMessagesByPhone,
   insertInboundMessages,
+  sendTextReply,
   type WhatsAppWebhookPayload,
 } from '@/lib/whatsapp';
 
@@ -59,12 +66,60 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Webhook] Stored ${insertedRows.length} WhatsApp messages`);
 
+    const autoReplied: string[] = [];
+
+    if (isAgentEnabled() && messages.length > 0) {
+      const byContact = new Map<string, typeof messages>();
+      for (const m of messages) {
+        const existing = byContact.get(m.contact_phone);
+        if (!existing) {
+          byContact.set(m.contact_phone, [m]);
+        } else {
+          existing.push(m);
+        }
+      }
+
+      for (const [contactPhone, contactMessages] of byContact) {
+        const sorted = [...contactMessages].sort(
+          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+        const latest = sorted[0];
+        const latestText = (latest.message_text || '').trim();
+        if (!latestText) continue;
+
+        try {
+          const history = await fetchMessagesByPhone(contactPhone, 30);
+          const turns = buildConversationTurns(
+            history.map((h) => ({ direction: h.direction, message_text: h.message_text }))
+          );
+          const replyText = await generateAgentReply({
+            contactName: latest.contact_name || contactPhone,
+            latestMessage: latestText,
+            recentTurns: turns,
+          });
+
+          if (replyText) {
+            await sendTextReply({
+              to: contactPhone,
+              body: replyText,
+              contactName: latest.contact_name,
+            });
+            autoReplied.push(contactPhone);
+            console.log(`[Webhook] Auto-replied to ${contactPhone}`);
+          }
+        } catch (err: unknown) {
+          console.error(`[Webhook] Agent reply failed for ${contactPhone}:`, err);
+        }
+      }
+    }
+
     return NextResponse.json({
       status: 'success',
       stored: insertedRows.length,
       statuses: statusCount,
       payloadMessages: messageCount,
       messageIds: insertedRows.map((row) => row.external_message_id),
+      autoReplied: autoReplied.length > 0 ? autoReplied : undefined,
     });
   } catch (error: any) {
     console.error('[Webhook] Error:', error);

@@ -65,6 +65,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     ['WhatsApp', config.phoneId && config.whatsappToken && config.verifyToken],
     ['OpenAI', config.openAiKey],
     ['Neon Auth', config.neonAuthBaseUrl && config.neonAuthCookieSecret],
+    ['Auto-reply agent', config.agentEnabled],
   ] as const;
 
   return (

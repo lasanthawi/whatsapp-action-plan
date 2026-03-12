@@ -14,17 +14,30 @@ export async function signInAction(formData: FormData) {
   const email = readValue(formData, 'email');
   const password = readValue(formData, 'password');
 
-  const { error } = await auth.signIn.email({
-    email,
-    password,
-  });
+  try {
+    const { error } = await auth.signIn.email({
+      email,
+      password,
+    });
 
-  if (error) {
-    const message = error.message || 'Unable to sign in.';
+    if (error) {
+      const message = error.message || 'Unable to sign in.';
+      redirect(`/auth/sign-in?mode=sign-in&error=${encodeURIComponent(message)}`);
+    }
+
+    redirect('/');
+  } catch (err: unknown) {
+    const isNetwork =
+      err instanceof Error &&
+      ('code' in err ? (err as NodeJS.ErrnoException).code === 'ECONNRESET' : false) ||
+      (err instanceof TypeError && err.message?.includes('fetch failed'));
+    const message = isNetwork
+      ? 'Connection to the auth server was reset. Check your network and that NEON_AUTH_BASE_URL is correct, then try again.'
+      : err instanceof Error
+        ? err.message
+        : 'Sign-in failed. Please try again.';
     redirect(`/auth/sign-in?mode=sign-in&error=${encodeURIComponent(message)}`);
   }
-
-  redirect('/');
 }
 
 export async function signUpAction(formData: FormData) {

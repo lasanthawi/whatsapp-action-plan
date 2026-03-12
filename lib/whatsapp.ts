@@ -66,11 +66,16 @@ export function getConfigStatus() {
     phoneId: Boolean(process.env.WHATSAPP_PHONE_ID),
     whatsappToken: Boolean(process.env.WHATSAPP_ACCESS_TOKEN),
     whatsappRecipient: Boolean(process.env.WHATSAPP_RECIPIENT_PHONE),
-    openAiKey: Boolean(process.env.OPENAI_API_KEY),
-    cronSecret: Boolean(process.env.CRON_SECRET),
-    neonAuthBaseUrl: Boolean(process.env.NEON_AUTH_BASE_URL),
-    neonAuthCookieSecret: Boolean(process.env.NEON_AUTH_COOKIE_SECRET),
-  };
+  openAiKey: Boolean(process.env.OPENAI_API_KEY),
+  cronSecret: Boolean(process.env.CRON_SECRET),
+  neonAuthBaseUrl: Boolean(process.env.NEON_AUTH_BASE_URL),
+  neonAuthCookieSecret: Boolean(process.env.NEON_AUTH_COOKIE_SECRET),
+  agentEnabled:
+    (process.env.ENABLE_AUTO_REPLY_AGENT === 'true' ||
+      process.env.ENABLE_AUTO_REPLY_AGENT === '1' ||
+      process.env.ENABLE_AUTO_REPLY_AGENT === 'yes') &&
+    Boolean(process.env.OPENAI_API_KEY),
+};
 }
 
 export async function insertInboundMessages(messages: StoredMessage[]) {
