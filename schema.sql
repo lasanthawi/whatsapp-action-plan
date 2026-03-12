@@ -37,3 +37,12 @@ CREATE TABLE IF NOT EXISTS daily_action_plans (
 );
 
 CREATE INDEX IF NOT EXISTS idx_plan_date ON daily_action_plans(plan_date DESC);
+
+-- App settings (key-value store for dashboard/settings UI)
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_settings_updated ON app_settings(updated_at DESC);

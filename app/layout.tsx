@@ -1,9 +1,56 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+
+const siteName = 'WhatsApp Action Plan';
+const title = `${siteName} Dashboard`;
+const description =
+  'Monitor webhook delivery, message ingestion, and integration health. Manage WhatsApp conversations and auto-replies in one place.';
+
+const ogImageUrl =
+  'https://media.istockphoto.com/id/477819764/vector/vintage-cool-dude-man-face-aviator-sunglasses-rockabilly-haircut.jpg?s=612x612&w=0&k=20&c=9FMVqO6OvCTz30rcMuRbpGMMQ1MMvsznII_OAZJAhyw=';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#1d1d1f',
+};
 
 export const metadata: Metadata = {
-  title: 'WhatsApp Action Plan Dashboard',
-  description: 'Monitor webhook delivery, message ingestion, and integration health.',
+  title: {
+    default: title,
+    template: `%s | ${siteName}`,
+  },
+  description,
+  keywords: ['WhatsApp', 'dashboard', 'messaging', 'webhook', 'automation'],
+  authors: [{ name: siteName }],
+  creator: siteName,
+  metadataBase:
+    process.env.VERCEL_URL != null
+      ? new URL(`https://${process.env.VERCEL_URL}`)
+      : process.env.NEXT_PUBLIC_APP_URL
+        ? new URL(process.env.NEXT_PUBLIC_APP_URL)
+        : undefined,
+  robots: {
+    index: true,
+    follow: true,
+  },
+  icons: {
+    icon: [{ url: ogImageUrl, type: 'image/jpeg', sizes: '612x612' }],
+    apple: [{ url: ogImageUrl, type: 'image/jpeg', sizes: '612x612' }],
+  },
+  openGraph: {
+    type: 'website',
+    title,
+    description,
+    siteName,
+    images: [{ url: ogImageUrl, width: 612, height: 612, alt: siteName }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title,
+    description,
+    images: [ogImageUrl],
+  },
 };
 
 export default function RootLayout({

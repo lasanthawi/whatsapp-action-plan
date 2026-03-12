@@ -70,11 +70,12 @@ export function getConfigStatus() {
   cronSecret: Boolean(process.env.CRON_SECRET),
   neonAuthBaseUrl: Boolean(process.env.NEON_AUTH_BASE_URL),
   neonAuthCookieSecret: Boolean(process.env.NEON_AUTH_COOKIE_SECRET),
-  agentEnabled:
-    (process.env.ENABLE_AUTO_REPLY_AGENT === 'true' ||
-      process.env.ENABLE_AUTO_REPLY_AGENT === '1' ||
-      process.env.ENABLE_AUTO_REPLY_AGENT === 'yes') &&
-    Boolean(process.env.OPENAI_API_KEY),
+  agentEnabled: (() => {
+    if (!process.env.OPENAI_API_KEY) return false;
+    const env = process.env.ENABLE_AUTO_REPLY_AGENT;
+    if (env === 'false' || env === '0' || env === 'no') return false;
+    return true;
+  })(),
 };
 }
 

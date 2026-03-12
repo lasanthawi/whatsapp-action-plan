@@ -111,9 +111,19 @@ export async function generateAgentReply(params: {
 
 /**
  * Check if the auto-reply agent is enabled and configured.
+ * Default: enabled when OPENAI_API_KEY is set, unless explicitly disabled via env.
  */
 export function isAgentEnabled(): boolean {
-  const enabled = process.env.ENABLE_AUTO_REPLY_AGENT;
-  const on = enabled === 'true' || enabled === '1' || enabled === 'yes';
-  return on && Boolean(OPENAI_API_KEY);
+  if (!OPENAI_API_KEY) return false;
+  const env = process.env.ENABLE_AUTO_REPLY_AGENT;
+  if (env === 'false' || env === '0' || env === 'no') return false;
+  return true;
+}
+
+/** Reason the agent is disabled (for logging/debug). */
+export function getAgentDisabledReason(): string | null {
+  if (!process.env.OPENAI_API_KEY) return 'OPENAI_API_KEY not set';
+  const env = process.env.ENABLE_AUTO_REPLY_AGENT;
+  if (env === 'false' || env === '0' || env === 'no') return 'ENABLE_AUTO_REPLY_AGENT is disabled';
+  return null;
 }

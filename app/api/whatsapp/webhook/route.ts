@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   buildConversationTurns,
   generateAgentReply,
+  getAgentDisabledReason,
   isAgentEnabled,
 } from '@/lib/chat-agent';
 import {
@@ -67,8 +68,12 @@ export async function POST(req: NextRequest) {
     console.log(`[Webhook] Stored ${insertedRows.length} WhatsApp messages`);
 
     const autoReplied: string[] = [];
+    let agentError: string | undefined;
 
-    if (isAgentEnabled() && messages.length > 0) {
+    const disabledReason = getAgentDisabledReason();
+    if (disabledReason) {
+      console.log(`[Webhook] Auto-reply agent skipped: ${disabledReason}`);
+    } else if (messages.length > 0) {
       const byContact = new Map<string, typeof messages>();
       for (const m of messages) {
         const existing = byContact.get(m.contact_phone);
@@ -78,6 +83,7 @@ export async function POST(req: NextRequest) {
           existing.push(m);
         }
       }
+      console.log(`[Webhook] Agent enabled, processing ${byContact.size} contact(s)`);
 
       for (const [contactPhone, contactMessages] of byContact) {
         const sorted = [...contactMessages].sort(
@@ -85,7 +91,10 @@ export async function POST(req: NextRequest) {
         );
         const latest = sorted[0];
         const latestText = (latest.message_text || '').trim();
-        if (!latestText) continue;
+        if (!latestText) {
+          console.log(`[Webhook] Skipping ${contactPhone}: no message text`);
+          continue;
+        }
 
         try {
           const history = await fetchMessagesByPhone(contactPhone, 30);
@@ -106,21 +115,29 @@ export async function POST(req: NextRequest) {
             });
             autoReplied.push(contactPhone);
             console.log(`[Webhook] Auto-replied to ${contactPhone}`);
+          } else {
+            agentError = agentError || 'Agent returned empty reply';
           }
         } catch (err: unknown) {
-          console.error(`[Webhook] Agent reply failed for ${contactPhone}:`, err);
+          const msg = err instanceof Error ? err.message : String(err);
+          agentError = agentError || msg;
+          console.error(`[Webhook] Agent reply failed for ${contactPhone}:`, msg, err);
         }
       }
     }
 
-    return NextResponse.json({
+    const body: Record<string, unknown> = {
       status: 'success',
       stored: insertedRows.length,
       statuses: statusCount,
       payloadMessages: messageCount,
       messageIds: insertedRows.map((row) => row.external_message_id),
-      autoReplied: autoReplied.length > 0 ? autoReplied : undefined,
-    });
+    };
+    if (autoReplied.length > 0) body.autoReplied = autoReplied;
+    if (disabledReason) body.agentSkippedReason = disabledReason;
+    if (agentError) body.agentError = agentError;
+
+    return NextResponse.json(body);
   } catch (error: any) {
     console.error('[Webhook] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
