@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 
 import { fetchRecentMessages, getConfigStatus, pingSupabase } from '@/lib/whatsapp';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const config = getConfigStatus();
   const supabase = await pingSupabase();
