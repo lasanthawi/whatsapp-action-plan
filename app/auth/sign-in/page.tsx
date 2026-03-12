@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { signInAction, signUpAction } from '@/app/actions';
+import { signInAction } from '@/app/actions';
 import { auth } from '@/lib/auth/server';
 
 export const dynamic = 'force-dynamic';
@@ -33,11 +33,11 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         </p>
       </section>
 
-      <section className="auth-grid">
+      <section className="auth-grid auth-grid-single">
         <article className="auth-card">
           <div className="panel-header">
             <h2 className="panel-title">Sign in</h2>
-            <span className="pill pill-good">Existing account</span>
+            <span className="pill pill-good">Admin access</span>
           </div>
 
           <form action={signInAction} className="auth-form">
@@ -65,39 +65,10 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
               Sign in
             </button>
           </form>
-
-        </article>
-
-        <article className="auth-card">
-          <div className="panel-header">
-            <h2 className="panel-title">Create account</h2>
-            <span className="pill pill-neutral">Bootstrap access</span>
-          </div>
-
-          <form action={signUpAction} className="auth-form">
-            <label className="field">
-              Name
-              <input className="input" name="name" type="text" required />
-            </label>
-            <label className="field">
-              Email
-              <input className="input" name="email" type="email" required />
-            </label>
-            <label className="field">
-              Password
-              <input
-                autoComplete="new-password"
-                className="input"
-                name="password"
-                type="password"
-                minLength={8}
-                required
-              />
-            </label>
-            <button className="secondary-button" type="submit">
-              Create account
-            </button>
-          </form>
+          <p className="auth-note">
+            Account creation is disabled in the app UI. Manage users directly in
+            Neon Auth.
+          </p>
         </article>
       </section>
 

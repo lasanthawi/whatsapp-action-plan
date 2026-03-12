@@ -28,22 +28,12 @@ export async function signInAction(formData: FormData) {
 }
 
 export async function signUpAction(formData: FormData) {
-  const name = readValue(formData, 'name');
-  const email = readValue(formData, 'email');
-  const password = readValue(formData, 'password');
-
-  const { error } = await auth.signUp.email({
-    name,
-    email,
-    password,
-  });
-
-  if (error) {
-    const message = error.message || 'Unable to create account.';
-    redirect(`/auth/sign-in?mode=sign-up&error=${encodeURIComponent(message)}`);
-  }
-
-  redirect('/');
+  void formData;
+  redirect(
+    `/auth/sign-in?mode=sign-in&error=${encodeURIComponent(
+      'Sign up is disabled. Ask an admin to create your account in Neon Auth.'
+    )}`
+  );
 }
 
 export async function signOutAction() {
