@@ -38,7 +38,7 @@ See `.env.example` for all required variables.
 - `NEON_AUTH_COOKIE_SECRET` - A strong secret used to sign cached auth cookies
 - `GET/POST /api/auth/[...path]` is used by the Neon Auth integration
 - The dashboard root `/` is protected and redirects to `/auth/sign-in`
-- User signup is disabled in the app UI; create/manage users from Neon Auth
+- The app currently supports both sign-in and sign-up while you bootstrap access
 
 ## API Endpoints
 - `POST /api/whatsapp/webhook` - Receives WhatsApp webhooks
