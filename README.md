@@ -28,6 +28,8 @@ Run schema.sql in Supabase SQL Editor
 Update webhook URL in Meta Business Suite:
 `https://your-vercel-app.vercel.app/api/whatsapp/webhook`
 
+Use the same `WHATSAPP_VERIFY_TOKEN` value in Meta during webhook verification.
+
 ## Environment Variables
 See `.env.example` for all required variables.
 
@@ -38,5 +40,9 @@ See `.env.example` for all required variables.
 ## Database Schema
 - `whatsapp_messages` - Stores all incoming messages
 - `daily_action_plans` - Stores generated action plans
+
+## Notes
+- The webhook now supports Meta verification via `GET /api/whatsapp/webhook`
+- Incoming messages are deduplicated using WhatsApp's external message ID
 
 Deployed on Vercel | Database on Supabase | Powered by Composio + OpenAI
