@@ -3,6 +3,12 @@
  * Uses OpenAI to ask clarifications, give solutions, suggestions, or quick answers.
  */
 
+import {
+  BUILTAPPS_CANONICAL_WEBSITE,
+  BUILTAPPS_KNOWLEDGE_BASE,
+  LEAD_CAPTURE_FIELDS,
+} from '@/lib/builtapps-knowledge-base';
+
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const AGENT_MODEL = process.env.CHAT_AGENT_MODEL ?? 'gpt-4o-mini';
 
@@ -60,7 +66,13 @@ function buildSystemPrompt(params: {
       : null,
   ].filter(Boolean);
 
-  return `You are a helpful WhatsApp business assistant. When a customer sends a message, reply in a friendly, concise way suitable for chat.
+  return `You are Builtapps' WhatsApp executive assistant for technical + marketing conversations.
+Your mission is to qualify leads, gather requirements, and guide prospects to next steps.
+When a customer sends a message, reply in a friendly, concise way suitable for chat.
+
+Builtapps website to reference when useful: ${BUILTAPPS_CANONICAL_WEBSITE}
+Knowledge base:
+${BUILTAPPS_KNOWLEDGE_BASE}
 
 Runtime context:
 - You can read this chat thread and recent message history.
@@ -77,10 +89,64 @@ Rules:
 - Keep each reply short: 1-3 sentences for WhatsApp.
 - Be professional but warm. No slang unless the customer uses it.
 - Never say you cannot access this chat's message history.
+- Lead-first behavior: actively gather contact details and project requirements over 1-2 questions per turn.
+- Prioritize capturing: ${LEAD_CAPTURE_FIELDS.join(', ')}.
+- If details are missing, ask for the next most useful missing items and suggest a quick call.
 - If user asks to use an external tool that is not connected, say what to connect in Settings and offer the next best step.
 - For media-only messages (e.g. image/voice placeholders), acknowledge what was received and ask one useful follow-up question.
 - Never make up links, prices, or policies. Say "I don't have that info to hand" if needed.
 - Reply in the same language the customer uses when possible.`;
+}
+
+const EMAIL_REGEX = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
+const PHONE_REGEX = /\+?\d[\d\s().-]{6,}\d/;
+const NAME_REGEX = /\b(my name is|i am|i'm|this is)\s+[A-Za-z][A-Za-z' -]{1,40}\b/i;
+const COMPANY_REGEX =
+  /\b(company|organisation|organization|startup|business|from)\b.{0,40}\b[A-Za-z0-9&][A-Za-z0-9&.,' -]{1,40}\b/i;
+const CONTACT_ASK_REGEX =
+  /\b(name|company|email|e-mail|phone|whatsapp|contact)\b/i;
+const WEBSITE_INFO_REGEX =
+  /\b(website|site|services?|portfolio|case studies|about|company info|more info|details)\b/i;
+
+function detectLeadCoverage(turns: ConversationTurn[], latestMessage: string) {
+  const combined = [...turns.map((t) => t.content), latestMessage].join('\n');
+  return {
+    hasName: NAME_REGEX.test(combined),
+    hasCompany: COMPANY_REGEX.test(combined),
+    hasEmail: EMAIL_REGEX.test(combined),
+    hasPhone: PHONE_REGEX.test(combined),
+  };
+}
+
+function ensureLeadCaptureReply(input: {
+  reply: string;
+  turns: ConversationTurn[];
+  latestMessage: string;
+}) {
+  const reply = input.reply.trim();
+  const coverage = detectLeadCoverage(input.turns, input.latestMessage);
+  const missing: string[] = [];
+  if (!coverage.hasName) missing.push('name');
+  if (!coverage.hasCompany) missing.push('company');
+  if (!coverage.hasEmail) missing.push('email');
+  if (!coverage.hasPhone) missing.push('phone number');
+
+  let finalReply = reply;
+
+  if (missing.length > 0 && !CONTACT_ASK_REGEX.test(reply)) {
+    finalReply += ` Also, please share your ${missing
+      .slice(0, 3)
+      .join(', ')} so our team can follow up.`;
+  }
+
+  if (
+    WEBSITE_INFO_REGEX.test(input.latestMessage) &&
+    !/builtapps\.eu/i.test(finalReply)
+  ) {
+    finalReply += ` You can also review ${BUILTAPPS_CANONICAL_WEBSITE}.`;
+  }
+
+  return finalReply;
 }
 
 /**
@@ -171,7 +237,11 @@ export async function generateAgentReply(params: {
     throw new Error('OpenAI returned an empty reply');
   }
 
-  return content;
+  return ensureLeadCaptureReply({
+    reply: content,
+    turns: turnsToSend,
+    latestMessage,
+  });
 }
 
 /**
