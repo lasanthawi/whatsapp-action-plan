@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation';
 
 import { sendReplyAction } from '@/app/actions';
+import { MessageList } from '@/app/components/MessageList';
 import { auth } from '@/lib/auth/server';
 import {
   fetchConversationSummaries,
   fetchMessagesByPhone,
-  getConfigStatus,
   pingSupabase,
 } from '@/lib/whatsapp';
 
@@ -92,44 +92,7 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
       <section className="thread-panel">
         <div className="thread-panel-inner">
           <div className="thread-messages-wrap">
-            {messages.length === 0 ? (
-              <div className="empty-thread">
-                <p className="empty-title">No message history loaded</p>
-                <p className="empty-copy">
-                  Once messages exist for the selected contact, they will appear here in
-                  chronological order.
-                </p>
-              </div>
-            ) : (
-              <div className="message-list">
-                {messages.map((message) => (
-                  <div
-                    className={`message-row ${
-                      message.direction === 'outbound' ? 'message-row-outbound' : ''
-                    }`}
-                    key={message.id}
-                  >
-                    <article
-                      className={`message-card ${
-                        message.direction === 'outbound'
-                          ? 'message-card-outbound'
-                          : 'message-card-inbound'
-                      }`}
-                    >
-                      <div className="message-card-meta">
-                        <span>
-                          {message.direction === 'outbound'
-                            ? 'Sent from dashboard'
-                            : message.contact_name || message.contact_phone}
-                        </span>
-                        <time>{new Date(message.timestamp).toLocaleString()}</time>
-                      </div>
-                      <p className="message-card-body">{message.message_text || '(empty message)'}</p>
-                    </article>
-                  </div>
-                ))}
-              </div>
-            )}
+            <MessageList initialMessages={messages} selectedPhone={selectedPhone} />
           </div>
           {selectedConversation && (
             <div className="thread-reply">

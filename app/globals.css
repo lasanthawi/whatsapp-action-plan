@@ -954,10 +954,17 @@ textarea {
   transition: color 0.2s ease, background 0.2s ease;
 }
 
-.sidebar-nav-link:hover {
+.sidebar-nav-link:hover,
+.sidebar-nav-link-active:hover {
   color: var(--accent);
   background: var(--border-light);
   text-decoration: none;
+}
+
+.sidebar-nav-link-active {
+  background: var(--border-light);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* ========== Settings page ========== */

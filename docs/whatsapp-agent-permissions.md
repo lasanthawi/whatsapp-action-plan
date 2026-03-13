@@ -2,6 +2,29 @@
 
 If the auto-reply agent fails with **"(#10) Application does not have permission for this action"**, the app does not have the required Meta/WhatsApp permissions to send messages.
 
+## Permanent token (recommended): System User token
+
+**User** tokens (from the Access Token Debugger or “Generate token” in the app) **expire** (often within hours). They are not suitable for a 24/7 agent.
+
+Use a **System User** token instead. It **does not expire** unless you revoke it, so you set it once and the agent can run without token refresh.
+
+| Token type     | Expires?        | Use for                          |
+|----------------|-----------------|----------------------------------|
+| **User**       | Yes (short)     | Testing only                     |
+| **System User**| **No**          | Production / agent / backend     |
+
+**How to get a permanent token:**
+
+1. Go to [Meta Business Suite](https://business.facebook.com/) → **Business Settings** (gear).
+2. **Users** → **System users** → open a system user (or create one and assign it to your app).
+3. Click **Generate new token**.
+4. Select your **WhatsApp app**, then under **Permissions** enable:
+   - `whatsapp_business_management`
+   - `whatsapp_business_messaging`
+5. Generate and copy the token. Set it as **`WHATSAPP_ACCESS_TOKEN`** in Vercel (or your host).
+
+In the [Access Token Debugger](https://developers.facebook.com/tools/debug/accesstoken/), a System User token will show **Type: System User** and **Expires: Never** (or no expiration). There is **no automatic refresh** needed.
+
 ## Required permissions
 
 Your **access token** must include:

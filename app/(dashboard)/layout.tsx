@@ -1,10 +1,10 @@
-import Link from 'next/link';
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 
 import { sendReplyAction, signOutAction } from '@/app/actions';
 import { ConversationList } from '@/app/components/ConversationList';
 import { SendToAnyoneForm } from '@/app/components/SendToAnyoneForm';
+import { SidebarNav } from '@/app/components/SidebarNav';
 import { auth } from '@/lib/auth/server';
 import {
   fetchConversationSummaries,
@@ -58,14 +58,7 @@ export default async function DashboardLayout({
           </div>
         </div>
 
-        <nav className="sidebar-nav">
-          <Link href="/" className="sidebar-nav-link">
-            Inbox
-          </Link>
-          <Link href="/settings" className="sidebar-nav-link">
-            Settings
-          </Link>
-        </nav>
+        <SidebarNav />
 
         <div className="sidebar-block">
           <p className="section-label">Overview</p>

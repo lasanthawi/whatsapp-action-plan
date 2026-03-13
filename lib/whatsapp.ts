@@ -232,7 +232,7 @@ function formatWhatsAppError(payload: any) {
   }
 
   if (/access token/i.test(message) && /expired/i.test(message)) {
-    return 'Reply failed: your WhatsApp access token has expired. Generate a new token in Meta and update WHATSAPP_ACCESS_TOKEN in Vercel.';
+    return 'Reply failed: your WhatsApp access token has expired. User tokens expire quickly. Use a permanent token: Business Settings → Users → System users → Generate new token (with whatsapp_business_management and whatsapp_business_messaging), then set it as WHATSAPP_ACCESS_TOKEN. See docs/whatsapp-agent-permissions.md.';
   }
 
   if (/24-hour|outside the allowed window|customer care window/i.test(message)) {
