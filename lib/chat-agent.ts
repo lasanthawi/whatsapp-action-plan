@@ -11,20 +11,77 @@ export type ConversationTurn = {
   content: string;
 };
 
-const SYSTEM_PROMPT = `You are a helpful WhatsApp business assistant. When a customer sends a message, reply in a friendly, concise way suitable for chat.
+export type AgentCapabilitiesContext = {
+  neonDbMessages: boolean;
+  github: boolean;
+  facebook: boolean;
+  linkedin: boolean;
+  drive: boolean;
+  composioTools: boolean;
+  autoReplyMode: boolean;
+};
+
+export type BusinessProfileContext = {
+  description?: string;
+  email?: string;
+  address?: string;
+  website?: string;
+};
+
+function listConnectedIntegrations(
+  capabilities?: Partial<AgentCapabilitiesContext>
+): string[] {
+  if (!capabilities?.composioTools) return [];
+  const integrations: string[] = [];
+  if (capabilities.github) integrations.push('GitHub');
+  if (capabilities.facebook) integrations.push('Facebook');
+  if (capabilities.linkedin) integrations.push('LinkedIn');
+  if (capabilities.drive) integrations.push('Google Drive');
+  return integrations;
+}
+
+function buildSystemPrompt(params: {
+  capabilities?: Partial<AgentCapabilitiesContext>;
+  businessProfile?: BusinessProfileContext;
+}) {
+  const integrations = listConnectedIntegrations(params.capabilities);
+  const profileLines = [
+    params.businessProfile?.description
+      ? `- Business description: ${params.businessProfile.description}`
+      : null,
+    params.businessProfile?.email
+      ? `- Business email: ${params.businessProfile.email}`
+      : null,
+    params.businessProfile?.address
+      ? `- Business address: ${params.businessProfile.address}`
+      : null,
+    params.businessProfile?.website
+      ? `- Business website: ${params.businessProfile.website}`
+      : null,
+  ].filter(Boolean);
+
+  return `You are a helpful WhatsApp business assistant. When a customer sends a message, reply in a friendly, concise way suitable for chat.
+
+Runtime context:
+- You can read this chat thread and recent message history.
+- Connected external tools: ${integrations.length > 0 ? integrations.join(', ') : 'none'}.
+${profileLines.length > 0 ? profileLines.join('\n') : '- No business profile details are configured.'}
 
 Your replies can:
-- **Ask clarifications** when the request is vague or you need one or two details to help (e.g. "Which date works for you?" or "Do you mean X or Y?")
-- **Give solutions** when the customer has a clear problem (steps, links, or direct answers)
-- **Give suggestions** when they're exploring options (short pros/cons or recommendations)
-- **Give quick answers** for simple questions (yes/no, one line, or a short fact)
+- Ask clarifications when the request is vague or you need one or two details.
+- Give solutions when the customer has a clear problem.
+- Give suggestions when they are exploring options.
+- Give quick answers for simple questions.
 
 Rules:
-- Keep each reply short: 1–3 sentences for WhatsApp. No long paragraphs.
+- Keep each reply short: 1-3 sentences for WhatsApp.
 - Be professional but warm. No slang unless the customer uses it.
-- If you truly don't know or it's outside your role, say so briefly and offer to connect them to a human if needed.
+- Never say you cannot access this chat's message history.
+- If user asks to use an external tool that is not connected, say what to connect in Settings and offer the next best step.
+- For media-only messages (e.g. image/voice placeholders), acknowledge what was received and ask one useful follow-up question.
 - Never make up links, prices, or policies. Say "I don't have that info to hand" if needed.
 - Reply in the same language the customer uses when possible.`;
+}
 
 /**
  * Builds the conversation history for the API from stored messages.
@@ -54,6 +111,8 @@ export async function generateAgentReply(params: {
   contactName: string;
   latestMessage: string;
   recentTurns: ConversationTurn[];
+  capabilities?: Partial<AgentCapabilitiesContext>;
+  businessProfile?: BusinessProfileContext;
 }): Promise<string> {
   if (!OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY is not set');
@@ -62,7 +121,13 @@ export async function generateAgentReply(params: {
   const { contactName, latestMessage, recentTurns } = params;
 
   const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    {
+      role: 'system',
+      content: buildSystemPrompt({
+        capabilities: params.capabilities,
+        businessProfile: params.businessProfile,
+      }),
+    },
   ];
 
   // Add recent conversation (excluding the latest user message if it's already in recentTurns)
