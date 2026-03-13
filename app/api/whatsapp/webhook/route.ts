@@ -4,8 +4,10 @@ import {
   buildConversationTurns,
   generateAgentReply,
   getAgentDisabledReason,
-  isAgentEnabled,
+  type AgentCapabilitiesContext,
+  type BusinessProfileContext,
 } from '@/lib/chat-agent';
+import { getAgentCapabilities, getWhatsAppProfile } from '@/lib/settings';
 import {
   countStatuses,
   countWebhookMessages,
@@ -69,8 +71,29 @@ export async function POST(req: NextRequest) {
 
     const autoReplied: string[] = [];
     let agentError: string | undefined;
+    let capabilities: AgentCapabilitiesContext | undefined;
+    let businessProfile: BusinessProfileContext | undefined;
 
-    const disabledReason = getAgentDisabledReason();
+    try {
+      const [capabilitySettings, profileSettings] = await Promise.all([
+        getAgentCapabilities(),
+        getWhatsAppProfile(),
+      ]);
+      capabilities = capabilitySettings;
+      businessProfile = profileSettings;
+    } catch (settingsError: unknown) {
+      const msg =
+        settingsError instanceof Error
+          ? settingsError.message
+          : String(settingsError);
+      console.warn('[Webhook] Failed loading settings, using defaults:', msg);
+    }
+
+    const settingsDisabledReason =
+      capabilities && !capabilities.autoReplyMode
+        ? 'autoReplyMode is disabled in settings'
+        : null;
+    const disabledReason = getAgentDisabledReason() ?? settingsDisabledReason;
     if (disabledReason) {
       console.log(`[Webhook] Auto-reply agent skipped: ${disabledReason}`);
     } else if (messages.length > 0) {
@@ -97,14 +120,20 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-          const history = await fetchMessagesByPhone(contactPhone, 30);
-          const turns = buildConversationTurns(
-            history.map((h) => ({ direction: h.direction, message_text: h.message_text }))
-          );
+          const shouldUseHistory = capabilities?.neonDbMessages ?? true;
+          const turns = shouldUseHistory
+            ? buildConversationTurns(
+                (
+                  await fetchMessagesByPhone(contactPhone, 30)
+                ).map((h) => ({ direction: h.direction, message_text: h.message_text }))
+              )
+            : [];
           const replyText = await generateAgentReply({
             contactName: latest.contact_name || contactPhone,
             latestMessage: latestText,
             recentTurns: turns,
+            capabilities,
+            businessProfile,
           });
 
           if (replyText) {

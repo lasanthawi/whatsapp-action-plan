@@ -435,9 +435,18 @@ function extractMessageText(message: Record<string, any>) {
     case 'text':
       return message.text?.body ?? '';
     case 'image':
+      return message.image?.caption?.trim() || '[Image received]';
     case 'video':
+      return message.video?.caption?.trim() || '[Video received]';
     case 'document':
-      return message[message.type]?.caption ?? '';
+      return (
+        message.document?.caption?.trim() ||
+        (message.document?.filename
+          ? `[Document received: ${message.document.filename}]`
+          : '[Document received]')
+      );
+    case 'audio':
+      return message.audio?.voice ? '[Voice note received]' : '[Audio message received]';
     case 'button':
       return message.button?.text ?? '';
     case 'interactive':
@@ -450,6 +459,8 @@ function extractMessageText(message: Record<string, any>) {
       return [message.location?.name, message.location?.address]
         .filter(Boolean)
         .join(' - ');
+    case 'sticker':
+      return '[Sticker received]';
     default:
       return '';
   }
