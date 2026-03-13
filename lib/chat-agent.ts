@@ -91,7 +91,8 @@ Rules:
 - Never say you cannot access this chat's message history.
 - Lead-first behavior: actively gather contact details and project requirements over 1-2 questions per turn.
 - Prioritize capturing: ${LEAD_CAPTURE_FIELDS.join(', ')}.
-- If details are missing, ask for the next most useful missing items and suggest a quick call.
+- Keep first-touch messages natural: if the user only says hello/hi, respond conversationally and ask what they need before requesting contact details.
+- If details are missing, ask for the next most useful missing items only after project/service intent appears, and suggest a quick call when relevant.
 - If user asks to use an external tool that is not connected, say what to connect in Settings and offer the next best step.
 - For media-only messages (e.g. image/voice placeholders), acknowledge what was received and ask one useful follow-up question.
 - Never make up links, prices, or policies. Say "I don't have that info to hand" if needed.
@@ -107,6 +108,11 @@ const CONTACT_ASK_REGEX =
   /\b(name|company|email|e-mail|phone|whatsapp|contact)\b/i;
 const WEBSITE_INFO_REGEX =
   /\b(website|site|services?|portfolio|case studies|about|company info|more info|details)\b/i;
+const BUSINESS_INTENT_REGEX =
+  /\b(project|build|develop|software|app|mobile|website|automation|ai|quote|pricing|budget|timeline|scope|requirements|consult|call|demo|proposal|need help)\b/i;
+const GREETING_ONLY_REGEX =
+  /^\s*(hi+|hello+|hey+|yo+|sup+|good\s*(morning|afternoon|evening)|hiya|hii+)\s*[!.?]*\s*$/i;
+const THANKS_ONLY_REGEX = /^\s*(thanks?|thank you)\s*[!.?]*\s*$/i;
 
 function detectLeadCoverage(turns: ConversationTurn[], latestMessage: string) {
   const combined = [...turns.map((t) => t.content), latestMessage].join('\n');
@@ -116,6 +122,33 @@ function detectLeadCoverage(turns: ConversationTurn[], latestMessage: string) {
     hasEmail: EMAIL_REGEX.test(combined),
     hasPhone: PHONE_REGEX.test(combined),
   };
+}
+
+function shouldCollectLeadNow(turns: ConversationTurn[], latestMessage: string) {
+  const latest = latestMessage.trim();
+  if (!latest) return false;
+  if (GREETING_ONLY_REGEX.test(latest) || THANKS_ONLY_REGEX.test(latest)) {
+    return false;
+  }
+
+  const latestHasIntent = BUSINESS_INTENT_REGEX.test(latest) || WEBSITE_INFO_REGEX.test(latest);
+  const priorUserContent = turns
+    .filter((turn) => turn.role === 'user')
+    .map((turn) => turn.content)
+    .join('\n');
+  const priorHasIntent =
+    BUSINESS_INTENT_REGEX.test(priorUserContent) ||
+    WEBSITE_INFO_REGEX.test(priorUserContent);
+
+  // Keep first-touch greetings natural; ask contact details once there is actual buying intent.
+  return latestHasIntent || priorHasIntent;
+}
+
+function assistantRecentlyAskedContact(turns: ConversationTurn[]) {
+  const recentAssistantTurns = turns
+    .filter((turn) => turn.role === 'assistant')
+    .slice(-2);
+  return recentAssistantTurns.some((turn) => CONTACT_ASK_REGEX.test(turn.content));
 }
 
 function ensureLeadCaptureReply(input: {
@@ -132,11 +165,17 @@ function ensureLeadCaptureReply(input: {
   if (!coverage.hasPhone) missing.push('phone number');
 
   let finalReply = reply;
+  const shouldCollectNow = shouldCollectLeadNow(input.turns, input.latestMessage);
+  const alreadyAskedRecently = assistantRecentlyAskedContact(input.turns);
 
-  if (missing.length > 0 && !CONTACT_ASK_REGEX.test(reply)) {
-    finalReply += ` Also, please share your ${missing
-      .slice(0, 3)
-      .join(', ')} so our team can follow up.`;
+  if (
+    shouldCollectNow &&
+    missing.length > 0 &&
+    !CONTACT_ASK_REGEX.test(reply) &&
+    !alreadyAskedRecently
+  ) {
+    const requested = missing.slice(0, 2).join(' and ');
+    finalReply += ` If you're open to it, share your ${requested} and we can tailor the next steps.`;
   }
 
   if (
