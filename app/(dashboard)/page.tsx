@@ -124,11 +124,6 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
                   <span className="badge neutral">Manual send</span>
                 </div>
 
-                <div className="reply-context">
-                  <p className="reply-context-name">{selectedConversation.contact_name}</p>
-                  <p className="reply-context-phone">{selectedConversation.contact_phone}</p>
-                </div>
-
                 <form action={sendReplyAction} className="reply-form thread-composer-form">
                   <input name="to" type="hidden" value={selectedConversation.contact_phone} />
                   <input
