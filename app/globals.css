@@ -489,8 +489,7 @@ select {
 
 .thread-panel-inner {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
   min-height: calc(100vh - 160px);
 }
 
@@ -579,12 +578,14 @@ select {
   word-break: break-word;
 }
 
-.thread-reply,
-.thread-reply-empty {
+.thread-composer,
+.thread-composer-empty {
   padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  border-top: 1px solid var(--line);
+  background: #fff;
 }
 
 .reply-context {
@@ -648,6 +649,30 @@ select {
 .field-textarea {
   resize: vertical;
   min-height: 120px;
+}
+
+.thread-composer-form {
+  gap: 12px;
+}
+
+.thread-composer-textarea {
+  min-height: 104px;
+  max-height: 180px;
+}
+
+.thread-composer-actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.thread-composer-actions .helper-copy {
+  flex: 1;
+}
+
+.thread-composer-actions .primary-button {
+  min-width: 180px;
 }
 
 .primary-button,
@@ -904,6 +929,10 @@ select {
     min-height: auto;
   }
 
+  .thread-panel-inner {
+    min-height: auto;
+  }
+
   .detail-column {
     order: 3;
   }
@@ -937,6 +966,16 @@ select {
 
   .thread-panel-inner {
     min-height: auto;
+  }
+
+  .thread-composer-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .thread-composer-actions .primary-button {
+    min-width: 0;
+    width: 100%;
   }
 
   .message-card {

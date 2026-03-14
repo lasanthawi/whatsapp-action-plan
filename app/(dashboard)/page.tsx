@@ -113,61 +113,63 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
             <div className="thread-messages-wrap">
               <MessageList initialMessages={messages} selectedPhone={selectedPhone} />
             </div>
-          </div>
 
-          {selectedConversation ? (
-            <aside className="thread-reply">
-              <div className="thread-reply-head">
-                <div>
-                  <p className="section-label">Reply</p>
-                  <h3 className="detail-title">Respond to this customer</h3>
+            {selectedConversation ? (
+              <div className="thread-composer">
+                <div className="thread-reply-head">
+                  <div>
+                    <p className="section-label">Reply</p>
+                    <h3 className="detail-title">Respond to this customer</h3>
+                  </div>
+                  <span className="badge neutral">Manual send</span>
                 </div>
-                <span className="badge neutral">Manual send</span>
-              </div>
 
-              <div className="reply-context">
-                <p className="reply-context-name">{selectedConversation.contact_name}</p>
-                <p className="reply-context-phone">{selectedConversation.contact_phone}</p>
-              </div>
+                <div className="reply-context">
+                  <p className="reply-context-name">{selectedConversation.contact_name}</p>
+                  <p className="reply-context-phone">{selectedConversation.contact_phone}</p>
+                </div>
 
-              <form action={sendReplyAction} className="reply-form">
-                <input name="to" type="hidden" value={selectedConversation.contact_phone} />
-                <input
-                  name="contactName"
-                  type="hidden"
-                  value={selectedConversation.contact_name}
-                />
-
-                <label className="field">
-                  Message
-                  <textarea
-                    className="field-textarea"
-                    name="body"
-                    placeholder="Write a clear, human reply"
-                    rows={8}
-                    required
+                <form action={sendReplyAction} className="reply-form thread-composer-form">
+                  <input name="to" type="hidden" value={selectedConversation.contact_phone} />
+                  <input
+                    name="contactName"
+                    type="hidden"
+                    value={selectedConversation.contact_name}
                   />
-                </label>
 
+                  <label className="field">
+                    Message
+                    <textarea
+                      className="field-textarea thread-composer-textarea"
+                      name="body"
+                      placeholder="Write a clear, human reply"
+                      rows={4}
+                      required
+                    />
+                  </label>
+
+                  <div className="thread-composer-actions">
+                    <p className="helper-copy">
+                      Standard replies work inside the customer care window. If WhatsApp rejects
+                      the send, the reason will appear here.
+                    </p>
+
+                    <button className="primary-button" type="submit">
+                      Send reply
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <div className="thread-composer thread-composer-empty">
+                <p className="section-label">Reply</p>
+                <h3 className="detail-title">No conversation selected</h3>
                 <p className="helper-copy">
-                  Standard replies work inside the customer care window. If WhatsApp rejects the
-                  send, the reason will appear here.
+                  Pick a contact from the inbox to open the thread and send a reply.
                 </p>
-
-                <button className="primary-button" type="submit">
-                  Send reply
-                </button>
-              </form>
-            </aside>
-          ) : (
-            <aside className="thread-reply thread-reply-empty">
-              <p className="section-label">Reply</p>
-              <h3 className="detail-title">No conversation selected</h3>
-              <p className="helper-copy">
-                Pick a contact from the inbox to open the thread and send a reply.
-              </p>
-            </aside>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </section>
     </>
