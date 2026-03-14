@@ -514,6 +514,29 @@ select {
   gap: 14px;
 }
 
+.mobile-settings-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mobile-settings-tab {
+  padding: 11px 8px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text-faint);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mobile-settings-tab-active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border-color: rgba(10, 103, 255, 0.18);
+}
+
 .mobile-check-list {
   display: flex;
   flex-direction: column;

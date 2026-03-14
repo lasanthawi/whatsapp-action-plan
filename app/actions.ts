@@ -95,7 +95,7 @@ export async function saveWhatsAppProfileAction(formData: FormData) {
     website: readValue(formData, 'website'),
   });
   revalidatePath('/settings');
-  redirect('/settings?updated=whatsapp');
+  redirect('/settings?updated=whatsapp&section=profile');
 }
 
 export async function saveAgentCapabilitiesAction(formData: FormData) {
@@ -111,7 +111,7 @@ export async function saveAgentCapabilitiesAction(formData: FormData) {
     autoReplyMode: bool(formData.get('autoReplyMode') as string),
   });
   revalidatePath('/settings');
-  redirect('/settings?updated=agent');
+  redirect('/settings?updated=agent&section=agent');
 }
 
 export async function saveAutomatedTasksAction(formData: FormData) {
@@ -122,5 +122,5 @@ export async function saveAutomatedTasksAction(formData: FormData) {
     actionPlans: bool(formData.get('actionPlans') as string),
   });
   revalidatePath('/settings');
-  redirect('/settings?updated=tasks');
+  redirect('/settings?updated=tasks&section=automation');
 }
