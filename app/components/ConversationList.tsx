@@ -35,26 +35,23 @@ export function ConversationList({ conversations }: { conversations: Conversatio
             key={conversation.contact_phone}
             href={`/?phone=${encodeURIComponent(conversation.contact_phone)}`}
             className={`conversation-card ${active ? 'conversation-card-active' : ''}`}
-            data-initial={(conversation.contact_name || conversation.contact_phone || 'C').charAt(0).toUpperCase()}
           >
-            <div className="conversation-card-content">
-              <div className="conversation-card-top">
-                <strong>{conversation.contact_name}</strong>
-                <span>
-                  {new Date(conversation.last_message_at).toLocaleString([], {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-              <p className="conversation-card-phone">{conversation.contact_phone}</p>
-              <p className="conversation-card-preview">
-                <span>{conversation.last_direction === 'outbound' ? 'You' : 'Them'}</span>
-                {conversation.last_message_text || '(empty message)'}
-              </p>
+            <div className="conversation-card-top">
+              <strong>{conversation.contact_name}</strong>
+              <span>
+                {new Date(conversation.last_message_at).toLocaleString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
+              </span>
             </div>
+            <p className="conversation-card-phone">{conversation.contact_phone}</p>
+            <p className="conversation-card-preview">
+              <span>{conversation.last_direction === 'outbound' ? 'You' : 'Them'}</span>
+              {conversation.last_message_text || '(empty message)'}
+            </p>
           </Link>
         );
       })}

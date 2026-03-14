@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 
 import { sendReplyAction } from '@/app/actions';
-import { ConversationList } from '@/app/components/ConversationList';
 import { MessageList } from '@/app/components/MessageList';
 import { auth } from '@/lib/auth/server';
 import {
@@ -53,31 +52,35 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
   }
 
   return (
-    <div className="mobile-page mobile-page-inbox">
-      <section className="mobile-inbox-head">
-        <div>
-          <p className="section-label">Inbox</p>
-          <h2 className="mobile-screen-title">Conversations</h2>
-          <p className="mobile-screen-subtitle">
-            Review active chats, keep context, and reply quickly.
+    <>
+      <header className="main-header">
+        <div className="main-header-copy">
+          <p className="section-label">Conversation workspace</p>
+          <h2 className="main-title">
+            {selectedConversation?.contact_name || 'Select a conversation'}
+          </h2>
+          <p className="main-subtitle">
+            {selectedConversation?.contact_phone ||
+              'Choose a conversation from the inbox to load the full thread.'}
           </p>
         </div>
-
-        <div className="mobile-summary-metrics mobile-summary-metrics-compact">
-          <div className="mobile-summary-metric">
-            <strong>{conversations.length}</strong>
-            <span>Chats</span>
+        <div className="header-statuses">
+          <div className="header-status">
+            <span className="header-status-value">{messages.length}</span>
+            <span className="header-status-label">messages</span>
           </div>
-          <div className="mobile-summary-metric">
-            <strong>{messages.length}</strong>
-            <span>Msgs</span>
+          <div className="header-status">
+            <span className="header-status-value">{selectedConversation ? 'Open' : 'Idle'}</span>
+            <span className="header-status-label">thread</span>
           </div>
-          <div className={`mobile-summary-metric ${supabase.ok ? 'is-good' : 'is-bad'}`}>
-            <strong>{supabase.ok ? 'Live' : 'Issue'}</strong>
-            <span>System</span>
+          <div
+            className={`header-status ${supabase.ok ? 'header-status-good' : 'header-status-bad'}`}
+          >
+            <span className="header-status-value">{supabase.ok ? 'Live' : 'Issue'}</span>
+            <span className="header-status-label">system</span>
           </div>
         </div>
-      </section>
+      </header>
 
       {(dashboardError || threadError || searchParams?.error || searchParams?.sent) && (
         <section className="alert-stack">
@@ -92,66 +95,78 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
         </section>
       )}
 
-      <section className="mobile-chat-list-card">
-        <div className="mobile-section-head">
-          <div>
-            <p className="section-label">Recent chats</p>
-            <p className="mobile-section-copy">Tap any conversation to load its thread below.</p>
-          </div>
-          <span className="badge neutral">{conversations.length}</span>
-        </div>
-        <div className="mobile-chat-list-scroll">
-          <ConversationList conversations={conversations} />
-        </div>
-      </section>
-
-      <section className="mobile-thread-card">
-        <div className="mobile-thread-head">
-          <div className="mobile-thread-title-block">
-            <p className="section-label">Thread</p>
-            <h3 className="detail-title">
-              {selectedConversation?.contact_name || 'No conversation selected'}
-            </h3>
-            <p className="mobile-thread-subtitle">
-              {selectedConversation?.contact_phone || 'Choose a chat to open the conversation.'}
-            </p>
-          </div>
-          {selectedConversation ? (
-            <span className="badge neutral">{messages.length} msgs</span>
-          ) : null}
-        </div>
-
-        <div className="mobile-thread-stage">
-          <div className="mobile-thread-scroll">
-            <MessageList initialMessages={messages} selectedPhone={selectedPhone} />
-          </div>
-
-          {selectedConversation ? (
-            <form action={sendReplyAction} className="mobile-thread-composer">
-              <input name="to" type="hidden" value={selectedConversation.contact_phone} />
-              <input
-                name="contactName"
-                type="hidden"
-                value={selectedConversation.contact_name}
-              />
-              <textarea
-                className="field-textarea mobile-inline-textarea"
-                name="body"
-                placeholder="Write your reply..."
-                rows={2}
-                required
-              />
-              <button className="primary-button mobile-inline-send" type="submit">
-                Send
-              </button>
-            </form>
-          ) : (
-            <div className="mobile-thread-empty-note">
-              Pick a conversation above to start replying.
+      <section className="thread-panel">
+        <div className="thread-panel-inner">
+          <div className="thread-stage">
+            <div className="thread-stage-head">
+              <div>
+                <p className="section-label">Message history</p>
+                <h3 className="detail-title">
+                  {selectedConversation?.contact_name || 'Conversation timeline'}
+                </h3>
+              </div>
+              {selectedConversation ? (
+                <span className="badge neutral">{selectedConversation.contact_phone}</span>
+              ) : null}
             </div>
-          )}
+
+            <div className="thread-messages-wrap">
+              <MessageList initialMessages={messages} selectedPhone={selectedPhone} />
+            </div>
+
+            {selectedConversation ? (
+              <div className="thread-composer">
+                <div className="thread-reply-head">
+                  <div>
+                    <p className="section-label">Reply</p>
+                    <h3 className="detail-title">Respond to this customer</h3>
+                  </div>
+                  <span className="badge neutral">Manual send</span>
+                </div>
+
+                <form action={sendReplyAction} className="reply-form thread-composer-form">
+                  <input name="to" type="hidden" value={selectedConversation.contact_phone} />
+                  <input
+                    name="contactName"
+                    type="hidden"
+                    value={selectedConversation.contact_name}
+                  />
+
+                  <label className="field">
+                    Message
+                    <textarea
+                      className="field-textarea thread-composer-textarea"
+                      name="body"
+                      placeholder="Write a clear, human reply"
+                      rows={4}
+                      required
+                    />
+                  </label>
+
+                  <div className="thread-composer-actions">
+                    <p className="helper-copy">
+                      Standard replies work inside the customer care window. If WhatsApp rejects
+                      the send, the reason will appear here.
+                    </p>
+
+                    <button className="primary-button" type="submit">
+                      Send reply
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <div className="thread-composer thread-composer-empty">
+                <p className="section-label">Reply</p>
+                <h3 className="detail-title">No conversation selected</h3>
+                <p className="helper-copy">
+                  Pick a contact from the inbox to open the thread and send a reply.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </section>
-    </div>
+    </>
   );
 }
