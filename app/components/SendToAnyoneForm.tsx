@@ -14,9 +14,10 @@ export function SendToAnyoneForm({
   const toInputRef = useRef<HTMLInputElement>(null);
   const contactNameRef = useRef<HTMLInputElement>(null);
 
-  function handleContactSelect(e: React.ChangeEvent<HTMLSelectElement>) {
-    const value = e.target.value;
+  function handleContactSelect(event: React.ChangeEvent<HTMLSelectElement>) {
+    const value = event.target.value;
     if (!value) return;
+
     const [phone, name] = value.split('|');
     if (toInputRef.current) toInputRef.current.value = phone;
     if (contactNameRef.current) contactNameRef.current.value = name || '';
@@ -25,51 +26,59 @@ export function SendToAnyoneForm({
   return (
     <form action={sendReplyAction} className="reply-form send-to-anyone-form">
       <div className="field">
-        <label htmlFor="to-anyone">Recipient (phone number)</label>
+        <label htmlFor="to-anyone">Recipient</label>
         <input
           id="to-anyone"
           name="to"
           ref={toInputRef}
           type="text"
           required
-          placeholder="e.g. 94767138454"
+          placeholder="94767138454"
           autoComplete="off"
           className="field-input"
         />
       </div>
+
       <div className="field">
-        <label htmlFor="recipient-select">Or select from contacts</label>
+        <label htmlFor="recipient-select">Quick pick</label>
         <select
           id="recipient-select"
           className="field-input"
           onChange={handleContactSelect}
           defaultValue=""
         >
-          <option value="">Choose a contact…</option>
-          {conversations.map((c) => (
-            <option key={c.contact_phone} value={`${c.contact_phone}|${c.contact_name || ''}`}>
-              {c.contact_name || c.contact_phone} ({c.contact_phone})
+          <option value="">Choose a contact...</option>
+          {conversations.map((conversation) => (
+            <option
+              key={conversation.contact_phone}
+              value={`${conversation.contact_phone}|${conversation.contact_name || ''}`}
+            >
+              {conversation.contact_name || conversation.contact_phone} ({conversation.contact_phone})
             </option>
           ))}
         </select>
       </div>
+
       <input name="contactName" ref={contactNameRef} type="hidden" />
+
       <div className="field">
         <label htmlFor="body-anyone">Message</label>
         <textarea
           id="body-anyone"
           className="field-textarea"
           name="body"
-          placeholder="Write your message…"
+          placeholder="Write your message"
           rows={5}
           required
         />
       </div>
+
       <p className="helper-copy">
-        Enter a phone number or pick from contacts. Use international format without + (e.g. 94767138454).
+        Use international format without `+`, or pick an existing contact from the list.
       </p>
+
       <button className="primary-button" type="submit">
-        Send to recipient
+        Send message
       </button>
     </form>
   );

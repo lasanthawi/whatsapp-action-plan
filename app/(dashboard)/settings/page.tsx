@@ -36,17 +36,17 @@ export default async function SettingsPage({ searchParams }: PageProps) {
       <header className="main-header main-header-settings">
         <div>
           <p className="section-label">Settings</p>
-          <h2 className="main-title">Settings</h2>
+          <h2 className="main-title">Workspace settings</h2>
           <p className="main-subtitle">
-            Customize WhatsApp profile, chat agent, and automated tasks.
+            Manage your WhatsApp profile, reply agent behavior, and automated tasks.
           </p>
         </div>
         <Link href="/" className="settings-back-inline">
-          ← Inbox
+          Back to inbox
         </Link>
       </header>
 
-      {updated && (
+      {updated ? (
         <section className="alert-stack">
           <p className="alert alert-success" role="status">
             {updated === 'whatsapp' && 'WhatsApp profile saved.'}
@@ -54,7 +54,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
             {updated === 'tasks' && 'Automated tasks saved.'}
           </p>
         </section>
-      )}
+      ) : null}
 
       <div className="main-column-settings">
         <section className="settings-section-inner">
@@ -62,11 +62,11 @@ export default async function SettingsPage({ searchParams }: PageProps) {
             <div className="block-head">
               <div>
                 <p className="section-label">WhatsApp profile</p>
-                <h3 className="detail-title">Customize WhatsApp profile</h3>
+                <h3 className="detail-title">Business profile details</h3>
               </div>
             </div>
             <p className="settings-card-desc">
-              Profile picture, description, and contact details shown to customers.
+              Store the business details the reply agent and operators should work from.
             </p>
             <form action={saveWhatsAppProfileAction} className="settings-form">
               <div className="field">
@@ -76,17 +76,17 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                   name="profilePictureUrl"
                   type="url"
                   className="field-input"
-                  placeholder="https://…"
+                  placeholder="https://..."
                   defaultValue={whatsappProfile.profilePictureUrl}
                 />
               </div>
               <div className="field">
-                <label htmlFor="description">About / description</label>
+                <label htmlFor="description">Description</label>
                 <textarea
                   id="description"
                   name="description"
                   className="field-textarea"
-                  rows={2}
+                  rows={3}
                   placeholder="Short business description"
                   defaultValue={whatsappProfile.description}
                 />
@@ -120,7 +120,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                   name="website"
                   type="url"
                   className="field-input"
-                  placeholder="https://…"
+                  placeholder="https://..."
                   defaultValue={whatsappProfile.website}
                 />
               </div>
@@ -136,41 +136,61 @@ export default async function SettingsPage({ searchParams }: PageProps) {
             <div className="block-head">
               <div>
                 <p className="section-label">Chat agent</p>
-                <h3 className="detail-title">Auto chat agent capabilities</h3>
+                <h3 className="detail-title">Auto-reply capabilities</h3>
               </div>
             </div>
             <p className="settings-card-desc">
-              Enable or disable what the agent can access and whether it auto-replies.
+              Control what the agent can use and whether it should reply automatically.
             </p>
             <form action={saveAgentCapabilitiesAction} className="settings-form">
               <div className="settings-toggles">
                 <label className="settings-toggle">
-                  <input type="checkbox" name="neonDbMessages" defaultChecked={agentCapabilities.neonDbMessages} />
-                  <span>Neon DB messages (conversation history)</span>
+                  <input
+                    type="checkbox"
+                    name="neonDbMessages"
+                    defaultChecked={agentCapabilities.neonDbMessages}
+                  />
+                  <span>Use stored message history from the database</span>
                 </label>
                 <label className="settings-toggle">
                   <input type="checkbox" name="github" defaultChecked={agentCapabilities.github} />
-                  <span>GitHub (via Composio)</span>
+                  <span>GitHub tools</span>
                 </label>
                 <label className="settings-toggle">
-                  <input type="checkbox" name="facebook" defaultChecked={agentCapabilities.facebook} />
-                  <span>Facebook</span>
+                  <input
+                    type="checkbox"
+                    name="facebook"
+                    defaultChecked={agentCapabilities.facebook}
+                  />
+                  <span>Facebook tools</span>
                 </label>
                 <label className="settings-toggle">
-                  <input type="checkbox" name="linkedin" defaultChecked={agentCapabilities.linkedin} />
-                  <span>LinkedIn</span>
+                  <input
+                    type="checkbox"
+                    name="linkedin"
+                    defaultChecked={agentCapabilities.linkedin}
+                  />
+                  <span>LinkedIn tools</span>
                 </label>
                 <label className="settings-toggle">
                   <input type="checkbox" name="drive" defaultChecked={agentCapabilities.drive} />
-                  <span>Google Drive</span>
+                  <span>Google Drive tools</span>
                 </label>
                 <label className="settings-toggle">
-                  <input type="checkbox" name="composioTools" defaultChecked={agentCapabilities.composioTools} />
-                  <span>Composio tools (integrations)</span>
+                  <input
+                    type="checkbox"
+                    name="composioTools"
+                    defaultChecked={agentCapabilities.composioTools}
+                  />
+                  <span>Composio integrations</span>
                 </label>
                 <label className="settings-toggle settings-toggle-highlight">
-                  <input type="checkbox" name="autoReplyMode" defaultChecked={agentCapabilities.autoReplyMode} />
-                  <span>Auto-reply mode</span>
+                  <input
+                    type="checkbox"
+                    name="autoReplyMode"
+                    defaultChecked={agentCapabilities.autoReplyMode}
+                  />
+                  <span>Enable active auto-reply mode</span>
                 </label>
               </div>
               <button type="submit" className="primary-button">
@@ -185,21 +205,29 @@ export default async function SettingsPage({ searchParams }: PageProps) {
             <div className="block-head">
               <div>
                 <p className="section-label">Automation</p>
-                <h3 className="detail-title">Configure automated tasks</h3>
+                <h3 className="detail-title">Scheduled workflows</h3>
               </div>
             </div>
             <p className="settings-card-desc">
-              Daily reports, action plans, and scheduled jobs.
+              Enable or disable reporting and planning jobs for your workspace.
             </p>
             <form action={saveAutomatedTasksAction} className="settings-form">
               <div className="settings-toggles">
                 <label className="settings-toggle">
-                  <input type="checkbox" name="dailyReports" defaultChecked={automatedTasks.dailyReports} />
-                  <span>Daily reports (digest of messages and priorities)</span>
+                  <input
+                    type="checkbox"
+                    name="dailyReports"
+                    defaultChecked={automatedTasks.dailyReports}
+                  />
+                  <span>Daily reports</span>
                 </label>
                 <label className="settings-toggle">
-                  <input type="checkbox" name="actionPlans" defaultChecked={automatedTasks.actionPlans} />
-                  <span>Action plans (tasks and follow-ups)</span>
+                  <input
+                    type="checkbox"
+                    name="actionPlans"
+                    defaultChecked={automatedTasks.actionPlans}
+                  />
+                  <span>Action plans</span>
                 </label>
               </div>
               <button type="submit" className="primary-button">

@@ -3,51 +3,113 @@
  * Uses OpenAI to ask clarifications, give solutions, suggestions, or quick answers.
  */
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const AGENT_MODEL = process.env.CHAT_AGENT_MODEL ?? 'gpt-4o-mini';
+import type {
+  AgentCapabilitiesSettings,
+  WhatsAppProfileSettings,
+} from '@/lib/settings';
 
 export type ConversationTurn = {
   role: 'user' | 'assistant';
   content: string;
 };
 
-const SYSTEM_PROMPT = `You are a helpful WhatsApp business assistant. When a customer sends a message, reply in a friendly, concise way suitable for chat.
+export type AgentCapabilitiesContext = AgentCapabilitiesSettings;
+export type BusinessProfileContext = WhatsAppProfileSettings;
 
-**Context you have access to:** You are given the full recent conversation history with this customer. Use it. You can see what they said before, what was already answered, and any follow-ups. Do NOT say you don't have access to previous messages or conversation history—you do. Base your reply on the full thread when relevant.
+const DEFAULT_AGENT_MODEL = 'gpt-4o-mini';
+
+const SYSTEM_PROMPT = `You are a helpful WhatsApp business assistant. Reply like a real operations person: warm, concise, and practical.
+
+You can see the recent conversation history. Use it when it helps, and avoid repeating what was already said.
 
 Your replies can:
-- **Ask clarifications** when the request is vague or you need one or two details to help (e.g. "Which date works for you?" or "Do you mean X or Y?")
-- **Give solutions** when the customer has a clear problem (steps, links, or direct answers)
-- **Give suggestions** when they're exploring options (short pros/cons or recommendations)
-- **Give quick answers** for simple questions (yes/no, one line, or a short fact)
+- ask one short clarification if the request is ambiguous
+- give a direct answer when the user is asking something simple
+- suggest the next step when the user needs help
+- acknowledge the user's context naturally
 
 Rules:
-- Keep each reply short: 1–3 sentences for WhatsApp. No long paragraphs.
-- Be professional but warm. No slang unless the customer uses it.
-- Use the conversation history to avoid repeating yourself and to reference what was already discussed.
-- If you truly don't know or it's outside your role, say so briefly and offer to connect them to a human if needed.
-- Never make up links, prices, or policies. Say "I don't have that info to hand" if needed.
-- Reply in the same language the customer uses when possible.`;
+- Keep replies short: 1 to 3 sentences
+- Sound human and natural, not robotic or overly formal
+- Do not invent links, prices, stock, or policies
+- If the message needs a human decision, say so briefly and offer to follow up
+- Match the customer's language when possible`;
+
+function getOpenAiApiKey() {
+  return process.env.OPENAI_API_KEY?.trim() || '';
+}
+
+function getAgentModel() {
+  return process.env.CHAT_AGENT_MODEL?.trim() || DEFAULT_AGENT_MODEL;
+}
+
+function sanitizeProviderMessage(message: string) {
+  return message
+    .replace(/sk-[A-Za-z0-9_-]+/g, '[redacted-key]')
+    .replace(/api key provided:[^.,\n]*/gi, 'API key provided: [redacted]')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function toOpenAiError(status: number, providerMessage?: string) {
+  const safeMessage = sanitizeProviderMessage(providerMessage || '');
+
+  if (status === 401 || /incorrect api key|invalid api key|api key provided/i.test(safeMessage)) {
+    return new Error(
+      'OpenAI request failed: OPENAI_API_KEY was rejected. Update the key in Vercel and redeploy.'
+    );
+  }
+
+  if (status === 429 || /rate limit|quota|billing/i.test(safeMessage)) {
+    return new Error(
+      'OpenAI request failed: the account is rate limited or out of quota. Check billing and usage.'
+    );
+  }
+
+  if (status >= 500) {
+    return new Error('OpenAI request failed: the model service is temporarily unavailable.');
+  }
+
+  return new Error(
+    safeMessage
+      ? `OpenAI request failed: ${safeMessage}`
+      : `OpenAI request failed with status ${status}.`
+  );
+}
 
 /**
  * Builds the conversation history for the API from stored messages.
  * Inbound = user, outbound = assistant.
  */
-export function buildConversationTurns(messages: Array<{ direction: string; message_text: string | null }>): ConversationTurn[] {
+export function buildConversationTurns(
+  messages: Array<{ direction: string; message_text: string | null }>
+): ConversationTurn[] {
   const turns: ConversationTurn[] = [];
 
-  for (const m of messages) {
-    const text = (m.message_text || '').trim();
+  for (const message of messages) {
+    const text = (message.message_text || '').trim();
     if (!text) continue;
 
-    if (m.direction === 'inbound') {
-      turns.push({ role: 'user', content: text });
-    } else {
-      turns.push({ role: 'assistant', content: text });
-    }
+    turns.push({
+      role: message.direction === 'inbound' ? 'user' : 'assistant',
+      content: text,
+    });
   }
 
   return turns;
+}
+
+function buildBusinessContext(profile?: BusinessProfileContext) {
+  if (!profile) return '';
+
+  const facts = [
+    profile.description ? `Business description: ${profile.description}` : null,
+    profile.email ? `Business email: ${profile.email}` : null,
+    profile.address ? `Business address: ${profile.address}` : null,
+    profile.website ? `Business website: ${profile.website}` : null,
+  ].filter(Boolean);
+
+  return facts.length ? `\n\nBusiness context:\n${facts.join('\n')}` : '';
 }
 
 /**
@@ -57,24 +119,39 @@ export async function generateAgentReply(params: {
   contactName: string;
   latestMessage: string;
   recentTurns: ConversationTurn[];
+  capabilities?: AgentCapabilitiesContext;
+  businessProfile?: BusinessProfileContext;
 }): Promise<string> {
-  if (!OPENAI_API_KEY) {
+  const apiKey = getOpenAiApiKey();
+  if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not set');
   }
 
-  const { contactName, latestMessage, recentTurns } = params;
+  const {
+    contactName,
+    latestMessage,
+    recentTurns,
+    capabilities,
+    businessProfile,
+  } = params;
 
   const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    {
+      role: 'system',
+      content:
+        `${SYSTEM_PROMPT}\n\nCustomer name: ${contactName}` +
+        buildBusinessContext(businessProfile) +
+        `\n\nCapabilities:\n- Conversation history available: ${
+          capabilities?.neonDbMessages ?? true ? 'yes' : 'no'
+        }\n- Auto-reply enabled: ${capabilities?.autoReplyMode ?? true ? 'yes' : 'no'}`,
+    },
   ];
 
-  // Add recent conversation (excluding the latest user message if it's already in recentTurns)
   const turnsToSend = recentTurns.length > 20 ? recentTurns.slice(-20) : recentTurns;
-  for (const t of turnsToSend) {
-    messages.push({ role: t.role, content: t.content });
+  for (const turn of turnsToSend) {
+    messages.push({ role: turn.role, content: turn.content });
   }
 
-  // If the latest message isn't already the last turn, add it
   const lastTurn = turnsToSend[turnsToSend.length - 1];
   if (lastTurn?.content !== latestMessage) {
     messages.push({ role: 'user', content: latestMessage });
@@ -84,13 +161,13 @@ export async function generateAgentReply(params: {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: AGENT_MODEL,
+      model: getAgentModel(),
       messages,
-      max_tokens: 256,
-      temperature: 0.7,
+      max_tokens: 180,
+      temperature: 0.5,
     }),
   });
 
@@ -100,13 +177,12 @@ export async function generateAgentReply(params: {
   };
 
   if (!response.ok) {
-    const errMsg = data?.error?.message || response.statusText;
-    throw new Error(`OpenAI API error: ${errMsg}`);
+    throw toOpenAiError(response.status, data?.error?.message || response.statusText);
   }
 
   const content = data?.choices?.[0]?.message?.content?.trim();
   if (!content) {
-    throw new Error('OpenAI returned an empty reply');
+    throw new Error('OpenAI returned an empty reply.');
   }
 
   return content;
@@ -117,7 +193,7 @@ export async function generateAgentReply(params: {
  * Default: enabled when OPENAI_API_KEY is set, unless explicitly disabled via env.
  */
 export function isAgentEnabled(): boolean {
-  if (!OPENAI_API_KEY) return false;
+  if (!getOpenAiApiKey()) return false;
   const env = process.env.ENABLE_AUTO_REPLY_AGENT;
   if (env === 'false' || env === '0' || env === 'no') return false;
   return true;
@@ -125,8 +201,10 @@ export function isAgentEnabled(): boolean {
 
 /** Reason the agent is disabled (for logging/debug). */
 export function getAgentDisabledReason(): string | null {
-  if (!process.env.OPENAI_API_KEY) return 'OPENAI_API_KEY not set';
+  if (!getOpenAiApiKey()) return 'OPENAI_API_KEY not set';
   const env = process.env.ENABLE_AUTO_REPLY_AGENT;
-  if (env === 'false' || env === '0' || env === 'no') return 'ENABLE_AUTO_REPLY_AGENT is disabled';
+  if (env === 'false' || env === '0' || env === 'no') {
+    return 'ENABLE_AUTO_REPLY_AGENT is disabled';
+  }
   return null;
 }

@@ -50,22 +50,38 @@ export default async function DashboardLayout({
     <main className="workspace-shell">
       <aside className="app-sidebar">
         <div className="sidebar-brand">
-          <div className="brand-mark">W</div>
+          <div className="brand-mark">WA</div>
           <div>
-            <p className="sidebar-kicker">Private workspace</p>
+            <p className="sidebar-kicker">Operations Console</p>
             <h1 className="sidebar-title">WhatsApp Desk</h1>
-            <p className="sidebar-subtitle">Conversations, replies, and operational visibility.</p>
+            <p className="sidebar-subtitle">
+              Inbox, live chat handling, and system readiness in one workspace.
+            </p>
           </div>
         </div>
 
         <SidebarNav />
 
-        <div className="sidebar-block">
-          <p className="section-label">Overview</p>
+        <div className="sidebar-block sidebar-overview">
+          <div className="block-head">
+            <div>
+              <p className="section-label">Overview</p>
+              <p className="block-copy">Today&apos;s active workspace</p>
+            </div>
+            <span className={`badge ${supabase.ok ? 'good' : 'bad'}`}>
+              {supabase.ok ? 'Live' : 'Issue'}
+            </span>
+          </div>
           <div className="sidebar-metrics">
             <div className="sidebar-metric">
               <span className="sidebar-metric-value">{conversations.length}</span>
               <span className="sidebar-metric-label">Active chats</span>
+            </div>
+            <div className="sidebar-metric">
+              <span className="sidebar-metric-value">
+                {conversations.filter((conversation) => conversation.last_direction === 'inbound').length}
+              </span>
+              <span className="sidebar-metric-label">Waiting on you</span>
             </div>
           </div>
         </div>
@@ -74,7 +90,7 @@ export default async function DashboardLayout({
           <div className="block-head">
             <div>
               <p className="section-label">Inbox</p>
-              <p className="block-copy">Recent conversations</p>
+              <p className="block-copy">Most recent conversations and latest messages</p>
             </div>
             <span className="badge neutral">{conversations.length}</span>
           </div>
@@ -112,8 +128,8 @@ export default async function DashboardLayout({
         <section className="detail-card">
           <div className="block-head">
             <div>
-              <p className="section-label">Send message</p>
-              <h3 className="detail-title">Send to anyone</h3>
+              <p className="section-label">Outbound</p>
+              <h3 className="detail-title">New message</h3>
             </div>
             <span className="badge neutral">Text only</span>
           </div>
@@ -127,7 +143,7 @@ export default async function DashboardLayout({
           <div className="block-head">
             <div>
               <p className="section-label">System</p>
-              <h3 className="detail-title">Operational checks</h3>
+              <h3 className="detail-title">Readiness</h3>
             </div>
             <span className={`badge ${supabase.ok ? 'good' : 'bad'}`}>
               {supabase.ok ? 'Healthy' : 'Attention'}

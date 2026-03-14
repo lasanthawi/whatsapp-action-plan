@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           agentError = agentError || msg;
-          console.error(`[Webhook] Agent reply failed for ${contactPhone}:`, msg, err);
+          console.error(`[Webhook] Agent reply failed for ${contactPhone}: ${msg}`);
         }
       }
     }

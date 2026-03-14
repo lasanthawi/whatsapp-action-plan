@@ -80,10 +80,17 @@ export function MessageList({ initialMessages, selectedPhone }: MessageListProps
             <div className="message-card-meta">
               <span>
                 {message.direction === 'outbound'
-                  ? 'Sent from dashboard'
+                  ? 'You'
                   : message.contact_name || message.contact_phone}
               </span>
-              <time>{new Date(message.timestamp).toLocaleString()}</time>
+              <time>
+                {new Date(message.timestamp).toLocaleString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
+              </time>
             </div>
             <p className="message-card-body">
               {message.message_text || '(empty message)'}

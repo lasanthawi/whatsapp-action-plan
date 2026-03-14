@@ -37,7 +37,7 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
 
   const selectedPhone = searchParams?.phone || conversations[0]?.contact_phone || null;
   const selectedConversation = conversations.find(
-    (c) => c.contact_phone === selectedPhone
+    (conversation) => conversation.contact_phone === selectedPhone
   );
 
   let messages = [] as Awaited<ReturnType<typeof fetchMessagesByPhone>>;
@@ -54,14 +54,14 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
   return (
     <>
       <header className="main-header">
-        <div>
-          <p className="section-label">Conversation</p>
+        <div className="main-header-copy">
+          <p className="section-label">Conversation workspace</p>
           <h2 className="main-title">
             {selectedConversation?.contact_name || 'Select a conversation'}
           </h2>
           <p className="main-subtitle">
             {selectedConversation?.contact_phone ||
-              'Choose a chat on the left to open its full message history.'}
+              'Choose a conversation from the inbox to load the full thread.'}
           </p>
         </div>
         <div className="header-statuses">
@@ -69,7 +69,13 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
             <span className="header-status-value">{messages.length}</span>
             <span className="header-status-label">messages</span>
           </div>
-          <div className={`header-status ${supabase.ok ? 'header-status-good' : 'header-status-bad'}`}>
+          <div className="header-status">
+            <span className="header-status-value">{selectedConversation ? 'Open' : 'Idle'}</span>
+            <span className="header-status-label">thread</span>
+          </div>
+          <div
+            className={`header-status ${supabase.ok ? 'header-status-good' : 'header-status-bad'}`}
+          >
             <span className="header-status-value">{supabase.ok ? 'Live' : 'Issue'}</span>
             <span className="header-status-label">system</span>
           </div>
@@ -78,42 +84,89 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
 
       {(dashboardError || threadError || searchParams?.error || searchParams?.sent) && (
         <section className="alert-stack">
-          {dashboardError && <p className="alert alert-error">{dashboardError}</p>}
-          {threadError && <p className="alert alert-error">{threadError}</p>}
-          {searchParams?.error && (
+          {dashboardError ? <p className="alert alert-error">{dashboardError}</p> : null}
+          {threadError ? <p className="alert alert-error">{threadError}</p> : null}
+          {searchParams?.error ? (
             <p className="alert alert-error">{decodeURIComponent(searchParams.error)}</p>
-          )}
-          {searchParams?.sent && (
-            <p className="alert alert-success">Reply sent and stored successfully.</p>
-          )}
+          ) : null}
+          {searchParams?.sent ? (
+            <p className="alert alert-success">Reply sent and recorded successfully.</p>
+          ) : null}
         </section>
       )}
 
       <section className="thread-panel">
         <div className="thread-panel-inner">
-          <div className="thread-messages-wrap">
-            <MessageList initialMessages={messages} selectedPhone={selectedPhone} />
+          <div className="thread-stage">
+            <div className="thread-stage-head">
+              <div>
+                <p className="section-label">Message history</p>
+                <h3 className="detail-title">
+                  {selectedConversation?.contact_name || 'Conversation timeline'}
+                </h3>
+              </div>
+              {selectedConversation ? (
+                <span className="badge neutral">{selectedConversation.contact_phone}</span>
+              ) : null}
+            </div>
+
+            <div className="thread-messages-wrap">
+              <MessageList initialMessages={messages} selectedPhone={selectedPhone} />
+            </div>
           </div>
-          {selectedConversation && (
-            <div className="thread-reply">
+
+          {selectedConversation ? (
+            <aside className="thread-reply">
+              <div className="thread-reply-head">
+                <div>
+                  <p className="section-label">Reply</p>
+                  <h3 className="detail-title">Respond to this customer</h3>
+                </div>
+                <span className="badge neutral">Manual send</span>
+              </div>
+
+              <div className="reply-context">
+                <p className="reply-context-name">{selectedConversation.contact_name}</p>
+                <p className="reply-context-phone">{selectedConversation.contact_phone}</p>
+              </div>
+
               <form action={sendReplyAction} className="reply-form">
                 <input name="to" type="hidden" value={selectedConversation.contact_phone} />
-                <input name="contactName" type="hidden" value={selectedConversation.contact_name} />
+                <input
+                  name="contactName"
+                  type="hidden"
+                  value={selectedConversation.contact_name}
+                />
+
                 <label className="field">
-                  Reply to {selectedConversation.contact_name || selectedConversation.contact_phone}
+                  Message
                   <textarea
                     className="field-textarea"
                     name="body"
-                    placeholder="Write a reply…"
-                    rows={3}
+                    placeholder="Write a clear, human reply"
+                    rows={8}
                     required
                   />
                 </label>
+
+                <p className="helper-copy">
+                  Standard replies work inside the customer care window. If WhatsApp rejects the
+                  send, the reason will appear here.
+                </p>
+
                 <button className="primary-button" type="submit">
                   Send reply
                 </button>
               </form>
-            </div>
+            </aside>
+          ) : (
+            <aside className="thread-reply thread-reply-empty">
+              <p className="section-label">Reply</p>
+              <h3 className="detail-title">No conversation selected</h3>
+              <p className="helper-copy">
+                Pick a contact from the inbox to open the thread and send a reply.
+              </p>
+            </aside>
           )}
         </div>
       </section>

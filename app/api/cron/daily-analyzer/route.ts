@@ -5,7 +5,18 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_ID;
 const WHATSAPP_RECIPIENT = process.env.WHATSAPP_RECIPIENT_PHONE;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+function getOpenAiApiKey() {
+  return process.env.OPENAI_API_KEY?.trim() || '';
+}
+
+function sanitizeProviderMessage(message: string) {
+  return message
+    .replace(/sk-[A-Za-z0-9_-]+/g, '[redacted-key]')
+    .replace(/api key provided:[^.,\n]*/gi, 'API key provided: [redacted]')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
@@ -39,11 +50,16 @@ export async function GET(req: NextRequest) {
       `[${m.timestamp}] ${m.contact_name}: ${m.message_text}`
     ).join('\n\n');
     
+    const openAiApiKey = getOpenAiApiKey();
+    if (!openAiApiKey) {
+      throw new Error('Daily analyzer OpenAI request failed: OPENAI_API_KEY is not set.');
+    }
+
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
+        'Authorization': `Bearer ${openAiApiKey}`
       },
       body: JSON.stringify({
         model: 'gpt-4-turbo-preview',
@@ -59,6 +75,13 @@ export async function GET(req: NextRequest) {
     });
     
     const aiData = await aiResponse.json();
+    if (!aiResponse.ok) {
+      const providerMessage =
+        typeof aiData?.error?.message === 'string'
+          ? sanitizeProviderMessage(aiData.error.message)
+          : aiResponse.statusText;
+      throw new Error(`Daily analyzer OpenAI request failed: ${providerMessage}`);
+    }
     const plan = JSON.parse(aiData.choices[0].message.content);
     
     await fetch(`${SUPABASE_URL}/rest/v1/daily_action_plans`, {

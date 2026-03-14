@@ -38,7 +38,14 @@ export function ConversationList({ conversations }: { conversations: Conversatio
           >
             <div className="conversation-card-top">
               <strong>{conversation.contact_name}</strong>
-              <span>{new Date(conversation.last_message_at).toLocaleDateString()}</span>
+              <span>
+                {new Date(conversation.last_message_at).toLocaleString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
+              </span>
             </div>
             <p className="conversation-card-phone">{conversation.contact_phone}</p>
             <p className="conversation-card-preview">
