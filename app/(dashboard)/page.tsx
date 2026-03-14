@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { sendReplyAction } from '@/app/actions';
+import { ConversationList } from '@/app/components/ConversationList';
 import { MessageList } from '@/app/components/MessageList';
 import { auth } from '@/lib/auth/server';
 import {
@@ -52,35 +53,33 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
   }
 
   return (
-    <>
-      <header className="main-header">
-        <div className="main-header-copy">
-          <p className="section-label">Conversation workspace</p>
-          <h2 className="main-title">
-            {selectedConversation?.contact_name || 'Select a conversation'}
+    <div className="mobile-page mobile-page-inbox">
+      <section className="mobile-summary-card">
+        <div>
+          <p className="section-label">Inbox</p>
+          <h2 className="mobile-screen-title">
+            {selectedConversation?.contact_name || 'WhatsApp conversations'}
           </h2>
-          <p className="main-subtitle">
+          <p className="mobile-screen-subtitle">
             {selectedConversation?.contact_phone ||
-              'Choose a conversation from the inbox to load the full thread.'}
+              'Choose a conversation to open the full chat thread.'}
           </p>
         </div>
-        <div className="header-statuses">
-          <div className="header-status">
-            <span className="header-status-value">{messages.length}</span>
-            <span className="header-status-label">messages</span>
+        <div className="mobile-summary-metrics">
+          <div className="mobile-summary-metric">
+            <strong>{conversations.length}</strong>
+            <span>Chats</span>
           </div>
-          <div className="header-status">
-            <span className="header-status-value">{selectedConversation ? 'Open' : 'Idle'}</span>
-            <span className="header-status-label">thread</span>
+          <div className="mobile-summary-metric">
+            <strong>{messages.length}</strong>
+            <span>Msgs</span>
           </div>
-          <div
-            className={`header-status ${supabase.ok ? 'header-status-good' : 'header-status-bad'}`}
-          >
-            <span className="header-status-value">{supabase.ok ? 'Live' : 'Issue'}</span>
-            <span className="header-status-label">system</span>
+          <div className={`mobile-summary-metric ${supabase.ok ? 'is-good' : 'is-bad'}`}>
+            <strong>{supabase.ok ? 'Live' : 'Issue'}</strong>
+            <span>System</span>
           </div>
         </div>
-      </header>
+      </section>
 
       {(dashboardError || threadError || searchParams?.error || searchParams?.sent) && (
         <section className="alert-stack">
@@ -95,78 +94,62 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
         </section>
       )}
 
-      <section className="thread-panel">
-        <div className="thread-panel-inner">
-          <div className="thread-stage">
-            <div className="thread-stage-head">
-              <div>
-                <p className="section-label">Message history</p>
-                <h3 className="detail-title">
-                  {selectedConversation?.contact_name || 'Conversation timeline'}
-                </h3>
-              </div>
-              {selectedConversation ? (
-                <span className="badge neutral">{selectedConversation.contact_phone}</span>
-              ) : null}
-            </div>
-
-            <div className="thread-messages-wrap">
-              <MessageList initialMessages={messages} selectedPhone={selectedPhone} />
-            </div>
-
-            {selectedConversation ? (
-              <div className="thread-composer">
-                <div className="thread-reply-head">
-                  <div>
-                    <p className="section-label">Reply</p>
-                    <h3 className="detail-title">Respond to this customer</h3>
-                  </div>
-                  <span className="badge neutral">Manual send</span>
-                </div>
-
-                <form action={sendReplyAction} className="reply-form thread-composer-form">
-                  <input name="to" type="hidden" value={selectedConversation.contact_phone} />
-                  <input
-                    name="contactName"
-                    type="hidden"
-                    value={selectedConversation.contact_name}
-                  />
-
-                  <label className="field">
-                    Message
-                    <textarea
-                      className="field-textarea thread-composer-textarea"
-                      name="body"
-                      placeholder="Write a clear, human reply"
-                      rows={4}
-                      required
-                    />
-                  </label>
-
-                  <div className="thread-composer-actions">
-                    <p className="helper-copy">
-                      Standard replies work inside the customer care window. If WhatsApp rejects
-                      the send, the reason will appear here.
-                    </p>
-
-                    <button className="primary-button" type="submit">
-                      Send reply
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="thread-composer thread-composer-empty">
-                <p className="section-label">Reply</p>
-                <h3 className="detail-title">No conversation selected</h3>
-                <p className="helper-copy">
-                  Pick a contact from the inbox to open the thread and send a reply.
-                </p>
-              </div>
-            )}
+      <section className="mobile-conversation-strip">
+        <div className="mobile-section-head">
+          <div>
+            <p className="section-label">Recent chats</p>
+            <p className="mobile-section-copy">Tap a thread to switch context.</p>
           </div>
         </div>
+        <div className="mobile-conversation-scroll">
+          <ConversationList conversations={conversations} />
+        </div>
       </section>
-    </>
+
+      <section className="mobile-thread-card">
+        <div className="mobile-thread-head">
+          <div>
+            <p className="section-label">Thread</p>
+            <h3 className="detail-title">
+              {selectedConversation?.contact_name || 'No conversation selected'}
+            </h3>
+          </div>
+          {selectedConversation ? (
+            <span className="badge neutral">{selectedConversation.contact_phone}</span>
+          ) : null}
+        </div>
+
+        <div className="mobile-thread-stage">
+          <div className="mobile-thread-scroll">
+            <MessageList initialMessages={messages} selectedPhone={selectedPhone} />
+          </div>
+
+          {selectedConversation ? (
+            <form action={sendReplyAction} className="mobile-thread-composer">
+              <input name="to" type="hidden" value={selectedConversation.contact_phone} />
+              <input
+                name="contactName"
+                type="hidden"
+                value={selectedConversation.contact_name}
+              />
+              <textarea
+                className="field-textarea mobile-inline-textarea"
+                name="body"
+                placeholder="Reply to this chat"
+                rows={2}
+                required
+              />
+              <button className="primary-button mobile-inline-send" type="submit">
+                Send
+              </button>
+            </form>
+          ) : (
+            <div className="mobile-thread-empty-note">
+              Pick a conversation above to start replying.
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
