@@ -31,7 +31,7 @@
 
 html,
 body {
-  min-height: 100%;
+  height: 100%;
   margin: 0;
   padding: 0;
 }
@@ -47,6 +47,7 @@ body.app-root {
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  overflow: hidden;
 }
 
 a {
@@ -62,11 +63,12 @@ select {
 }
 
 .workspace-shell {
-  min-height: 100vh;
+  height: 100vh;
   padding: 18px;
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr) 340px;
   gap: 18px;
+  overflow: hidden;
 }
 
 .app-sidebar,
@@ -90,11 +92,14 @@ select {
 }
 
 .app-sidebar {
+  min-height: 0;
+  height: 100%;
   border-radius: var(--radius-xl);
   padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow: hidden;
 }
 
 .sidebar-brand {
@@ -193,6 +198,7 @@ select {
 
 .sidebar-block-fill {
   flex: 1;
+  min-height: 0;
 }
 
 .sidebar-overview {
@@ -323,6 +329,7 @@ select {
 }
 
 .sidebar-operator {
+  margin-top: auto;
   padding-top: 4px;
   border-top: 1px solid var(--line);
   display: flex;
@@ -380,9 +387,12 @@ select {
 }
 
 .main-column {
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow: hidden;
 }
 
 .main-header {
@@ -457,6 +467,7 @@ select {
 }
 
 .alert-stack {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -483,14 +494,18 @@ select {
 }
 
 .thread-panel {
+  flex: 1;
+  min-height: 0;
   border-radius: var(--radius-xl);
   padding: 16px;
+  overflow: hidden;
 }
 
 .thread-panel-inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  min-height: calc(100vh - 160px);
+  height: 100%;
+  min-height: 0;
 }
 
 .thread-stage,
@@ -503,6 +518,7 @@ select {
 }
 
 .thread-stage {
+  height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -580,6 +596,7 @@ select {
 
 .thread-composer,
 .thread-composer-empty {
+  flex: 0 0 auto;
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -693,13 +710,21 @@ select {
 }
 
 .detail-column {
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
 }
 
 .detail-card {
+  flex: 0 0 auto;
   padding: 18px;
+}
+
+.detail-card:last-child {
+  margin-top: auto;
 }
 
 .detail-title {
@@ -918,6 +943,7 @@ select {
   .workspace-shell {
     grid-template-columns: 1fr;
     height: auto;
+    overflow: visible;
   }
 
   .thread-panel-inner,
@@ -931,10 +957,13 @@ select {
 
   .thread-panel-inner {
     min-height: auto;
+    height: auto;
   }
 
   .detail-column {
     order: 3;
+    height: auto;
+    overflow: visible;
   }
 }
 
@@ -942,6 +971,11 @@ select {
   .workspace-shell,
   .auth-shell {
     padding: 12px;
+  }
+
+  body,
+  body.app-root {
+    overflow: auto;
   }
 
   .app-sidebar,
