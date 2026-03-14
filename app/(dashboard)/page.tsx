@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { sendReplyAction } from '@/app/actions';
@@ -37,7 +36,7 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
     dashboardError = error?.message || 'Failed to load inbox data.';
   }
 
-  const selectedPhone = searchParams?.phone || null;
+  const selectedPhone = searchParams?.phone || conversations[0]?.contact_phone || null;
   const selectedConversation = conversations.find(
     (conversation) => conversation.contact_phone === selectedPhone
   );
@@ -53,72 +52,36 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
     }
   }
 
-  const waitingCount = conversations.filter(
-    (conversation) => conversation.last_direction === 'inbound'
-  ).length;
-
-  if (!selectedConversation) {
-    return (
-      <div className="mobile-page mobile-page-inbox-list">
-        <section className="mobile-inbox-list-head">
-          <div>
-            <p className="section-label">Inbox</p>
-            <h2 className="mobile-screen-title">Chats</h2>
-            <p className="mobile-screen-subtitle">
-              Open a conversation to review context and reply.
-            </p>
-          </div>
-
-          <div className="mobile-stat-strip">
-            <div className="mobile-stat-pill">
-              <strong>{conversations.length}</strong>
-              <span>Chats</span>
-            </div>
-            <div className="mobile-stat-pill">
-              <strong>{waitingCount}</strong>
-              <span>Unread-like</span>
-            </div>
-            <div className={`mobile-stat-pill ${supabase.ok ? 'is-good' : 'is-bad'}`}>
-              <strong>{supabase.ok ? 'Live' : 'Issue'}</strong>
-              <span>System</span>
-            </div>
-          </div>
-        </section>
-
-        {(dashboardError || searchParams?.error || searchParams?.sent) && (
-          <section className="alert-stack">
-            {dashboardError ? <p className="alert alert-error">{dashboardError}</p> : null}
-            {searchParams?.error ? (
-              <p className="alert alert-error">{decodeURIComponent(searchParams.error)}</p>
-            ) : null}
-            {searchParams?.sent ? (
-              <p className="alert alert-success">Reply sent and recorded successfully.</p>
-            ) : null}
-          </section>
-        )}
-
-        <section className="mobile-chat-list-screen">
-          <div className="mobile-section-head mobile-section-head-tight">
-            <div>
-              <p className="section-label">Conversations</p>
-              <p className="mobile-section-copy">
-                {conversations.length} active thread{conversations.length === 1 ? '' : 's'}
-              </p>
-            </div>
-          </div>
-
-          <div className="mobile-chat-list-scroll mobile-chat-list-scroll-full">
-            <ConversationList conversations={conversations} />
-          </div>
-        </section>
-      </div>
-    );
-  }
-
   return (
-    <div className="mobile-page mobile-page-thread">
-      {(threadError || searchParams?.error || searchParams?.sent) && (
+    <div className="mobile-page mobile-page-inbox">
+      <section className="mobile-inbox-head">
+        <div>
+          <p className="section-label">Inbox</p>
+          <h2 className="mobile-screen-title">Conversations</h2>
+          <p className="mobile-screen-subtitle">
+            Review active chats, keep context, and reply quickly.
+          </p>
+        </div>
+
+        <div className="mobile-summary-metrics mobile-summary-metrics-compact">
+          <div className="mobile-summary-metric">
+            <strong>{conversations.length}</strong>
+            <span>Chats</span>
+          </div>
+          <div className="mobile-summary-metric">
+            <strong>{messages.length}</strong>
+            <span>Msgs</span>
+          </div>
+          <div className={`mobile-summary-metric ${supabase.ok ? 'is-good' : 'is-bad'}`}>
+            <strong>{supabase.ok ? 'Live' : 'Issue'}</strong>
+            <span>System</span>
+          </div>
+        </div>
+      </section>
+
+      {(dashboardError || threadError || searchParams?.error || searchParams?.sent) && (
         <section className="alert-stack">
+          {dashboardError ? <p className="alert alert-error">{dashboardError}</p> : null}
           {threadError ? <p className="alert alert-error">{threadError}</p> : null}
           {searchParams?.error ? (
             <p className="alert alert-error">{decodeURIComponent(searchParams.error)}</p>
@@ -129,19 +92,33 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
         </section>
       )}
 
-      <section className="mobile-thread-card mobile-thread-card-full">
-        <div className="mobile-thread-head mobile-thread-head-compact">
-          <div className="mobile-thread-backwrap">
-            <Link href="/" className="mobile-back-button" scroll={false}>
-              Back
-            </Link>
-            <div className="mobile-thread-title-block">
-              <p className="section-label">Thread</p>
-              <h3 className="detail-title">{selectedConversation.contact_name}</h3>
-              <p className="mobile-thread-subtitle">{selectedConversation.contact_phone}</p>
-            </div>
+      <section className="mobile-chat-list-card">
+        <div className="mobile-section-head">
+          <div>
+            <p className="section-label">Recent chats</p>
+            <p className="mobile-section-copy">Tap any conversation to load its thread below.</p>
           </div>
-          <span className="badge neutral">{messages.length} msgs</span>
+          <span className="badge neutral">{conversations.length}</span>
+        </div>
+        <div className="mobile-chat-list-scroll">
+          <ConversationList conversations={conversations} />
+        </div>
+      </section>
+
+      <section className="mobile-thread-card">
+        <div className="mobile-thread-head">
+          <div className="mobile-thread-title-block">
+            <p className="section-label">Thread</p>
+            <h3 className="detail-title">
+              {selectedConversation?.contact_name || 'No conversation selected'}
+            </h3>
+            <p className="mobile-thread-subtitle">
+              {selectedConversation?.contact_phone || 'Choose a chat to open the conversation.'}
+            </p>
+          </div>
+          {selectedConversation ? (
+            <span className="badge neutral">{messages.length} msgs</span>
+          ) : null}
         </div>
 
         <div className="mobile-thread-stage">
@@ -149,24 +126,30 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
             <MessageList initialMessages={messages} selectedPhone={selectedPhone} />
           </div>
 
-          <form action={sendReplyAction} className="mobile-thread-composer mobile-thread-composer-tight">
-            <input name="to" type="hidden" value={selectedConversation.contact_phone} />
-            <input
-              name="contactName"
-              type="hidden"
-              value={selectedConversation.contact_name}
-            />
-            <textarea
-              className="field-textarea mobile-inline-textarea"
-              name="body"
-              placeholder="Message"
-              rows={2}
-              required
-            />
-            <button className="primary-button mobile-inline-send" type="submit">
-              Send
-            </button>
-          </form>
+          {selectedConversation ? (
+            <form action={sendReplyAction} className="mobile-thread-composer">
+              <input name="to" type="hidden" value={selectedConversation.contact_phone} />
+              <input
+                name="contactName"
+                type="hidden"
+                value={selectedConversation.contact_name}
+              />
+              <textarea
+                className="field-textarea mobile-inline-textarea"
+                name="body"
+                placeholder="Write your reply..."
+                rows={2}
+                required
+              />
+              <button className="primary-button mobile-inline-send" type="submit">
+                Send
+              </button>
+            </form>
+          ) : (
+            <div className="mobile-thread-empty-note">
+              Pick a conversation above to start replying.
+            </div>
+          )}
         </div>
       </section>
     </div>
