@@ -54,18 +54,16 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
 
   return (
     <div className="mobile-page mobile-page-inbox">
-      <section className="mobile-summary-card">
+      <section className="mobile-inbox-head">
         <div>
           <p className="section-label">Inbox</p>
-          <h2 className="mobile-screen-title">
-            {selectedConversation?.contact_name || 'WhatsApp conversations'}
-          </h2>
+          <h2 className="mobile-screen-title">Conversations</h2>
           <p className="mobile-screen-subtitle">
-            {selectedConversation?.contact_phone ||
-              'Choose a conversation to open the full chat thread.'}
+            Review active chats, keep context, and reply quickly.
           </p>
         </div>
-        <div className="mobile-summary-metrics">
+
+        <div className="mobile-summary-metrics mobile-summary-metrics-compact">
           <div className="mobile-summary-metric">
             <strong>{conversations.length}</strong>
             <span>Chats</span>
@@ -94,28 +92,32 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
         </section>
       )}
 
-      <section className="mobile-conversation-strip">
+      <section className="mobile-chat-list-card">
         <div className="mobile-section-head">
           <div>
             <p className="section-label">Recent chats</p>
-            <p className="mobile-section-copy">Tap a thread to switch context.</p>
+            <p className="mobile-section-copy">Tap any conversation to load its thread below.</p>
           </div>
+          <span className="badge neutral">{conversations.length}</span>
         </div>
-        <div className="mobile-conversation-scroll">
+        <div className="mobile-chat-list-scroll">
           <ConversationList conversations={conversations} />
         </div>
       </section>
 
       <section className="mobile-thread-card">
         <div className="mobile-thread-head">
-          <div>
+          <div className="mobile-thread-title-block">
             <p className="section-label">Thread</p>
             <h3 className="detail-title">
               {selectedConversation?.contact_name || 'No conversation selected'}
             </h3>
+            <p className="mobile-thread-subtitle">
+              {selectedConversation?.contact_phone || 'Choose a chat to open the conversation.'}
+            </p>
           </div>
           {selectedConversation ? (
-            <span className="badge neutral">{selectedConversation.contact_phone}</span>
+            <span className="badge neutral">{messages.length} msgs</span>
           ) : null}
         </div>
 
@@ -135,7 +137,7 @@ export default async function DashboardInboxPage({ searchParams }: PageProps) {
               <textarea
                 className="field-textarea mobile-inline-textarea"
                 name="body"
-                placeholder="Reply to this chat"
+                placeholder="Write your reply..."
                 rows={2}
                 required
               />
