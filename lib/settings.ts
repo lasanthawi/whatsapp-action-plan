@@ -3,8 +3,7 @@
  * Run schema.sql to create app_settings table if needed.
  */
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+import { supabaseFetch } from '@/lib/supabase-rest';
 
 export type WhatsAppProfileSettings = {
   profilePictureUrl: string;
@@ -29,10 +28,23 @@ export type AutomatedTasksSettings = {
   actionPlans: boolean;
 };
 
+export type ComposioSettings = {
+  composioEnabled: boolean;
+  composioApiKeyPresent: boolean;
+  operatorPhoneAllowlist: string[];
+  enabledToolkits: string[];
+  toolExecutionMode: 'operator_only';
+  approvalRequiredActions: string[];
+  defaultToolTimeoutMs: number;
+  toolResultVerbosity: 'brief' | 'detailed';
+  autoExecuteReads: boolean;
+};
+
 export type AppSettings = {
   whatsappProfile: WhatsAppProfileSettings;
   agentCapabilities: AgentCapabilitiesSettings;
   automatedTasks: AutomatedTasksSettings;
+  composio: ComposioSettings;
 };
 
 const DEFAULT_WHATSAPP_PROFILE: WhatsAppProfileSettings = {
@@ -58,28 +70,24 @@ const DEFAULT_AUTOMATED_TASKS: AutomatedTasksSettings = {
   actionPlans: true,
 };
 
+const DEFAULT_COMPOSIO_SETTINGS: ComposioSettings = {
+  composioEnabled: false,
+  composioApiKeyPresent: Boolean(process.env.COMPOSIO_API_KEY),
+  operatorPhoneAllowlist: [],
+  enabledToolkits: ['github', 'google_drive', 'gmail', 'slack', 'calendar'],
+  toolExecutionMode: 'operator_only',
+  approvalRequiredActions: ['merge', 'send', 'create', 'update', 'delete', 'share'],
+  defaultToolTimeoutMs: 30000,
+  toolResultVerbosity: 'brief',
+  autoExecuteReads: true,
+};
+
 const KEYS = {
   whatsappProfile: 'whatsapp_profile',
   agentCapabilities: 'agent_capabilities',
   automatedTasks: 'automated_tasks',
+  composio: 'composio_settings',
 } as const;
-
-async function supabaseFetch(path: string, init?: RequestInit): Promise<Response> {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('Missing Supabase configuration');
-  }
-  const response = await fetch(`${SUPABASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      ...(init?.headers || {}),
-    },
-    cache: 'no-store',
-  });
-  return response;
-}
 
 async function getSetting<K>(key: string): Promise<K | null> {
   try {
@@ -133,13 +141,24 @@ export async function getAutomatedTasks(): Promise<AutomatedTasksSettings> {
   return stored ? { ...DEFAULT_AUTOMATED_TASKS, ...stored } : DEFAULT_AUTOMATED_TASKS;
 }
 
+export async function getComposioSettings(): Promise<ComposioSettings> {
+  const stored = await getSetting<ComposioSettings>(KEYS.composio);
+  const settings = stored ? { ...DEFAULT_COMPOSIO_SETTINGS, ...stored } : DEFAULT_COMPOSIO_SETTINGS;
+  settings.composioApiKeyPresent = Boolean(process.env.COMPOSIO_API_KEY);
+  settings.operatorPhoneAllowlist = normalizeStringArray(settings.operatorPhoneAllowlist);
+  settings.enabledToolkits = normalizeStringArray(settings.enabledToolkits);
+  settings.approvalRequiredActions = normalizeStringArray(settings.approvalRequiredActions);
+  return settings;
+}
+
 export async function getAllSettings(): Promise<AppSettings> {
-  const [whatsappProfile, agentCapabilities, automatedTasks] = await Promise.all([
+  const [whatsappProfile, agentCapabilities, automatedTasks, composio] = await Promise.all([
     getWhatsAppProfile(),
     getAgentCapabilities(),
     getAutomatedTasks(),
+    getComposioSettings(),
   ]);
-  return { whatsappProfile, agentCapabilities, automatedTasks };
+  return { whatsappProfile, agentCapabilities, automatedTasks, composio };
 }
 
 export async function saveWhatsAppProfile(data: Partial<WhatsAppProfileSettings>): Promise<void> {
@@ -155,4 +174,28 @@ export async function saveAgentCapabilities(data: Partial<AgentCapabilitiesSetti
 export async function saveAutomatedTasks(data: Partial<AutomatedTasksSettings>): Promise<void> {
   const current = await getAutomatedTasks();
   await setSetting(KEYS.automatedTasks, { ...current, ...data });
+}
+
+export async function saveComposioSettings(data: Partial<ComposioSettings>): Promise<void> {
+  const current = await getComposioSettings();
+  await setSetting(KEYS.composio, {
+    ...current,
+    ...data,
+    composioApiKeyPresent: Boolean(process.env.COMPOSIO_API_KEY),
+    operatorPhoneAllowlist: normalizeStringArray(data.operatorPhoneAllowlist ?? current.operatorPhoneAllowlist),
+    enabledToolkits: normalizeStringArray(data.enabledToolkits ?? current.enabledToolkits),
+    approvalRequiredActions: normalizeStringArray(
+      data.approvalRequiredActions ?? current.approvalRequiredActions
+    ),
+  });
+}
+
+function normalizeStringArray(values: string[] | undefined) {
+  return Array.from(
+    new Set(
+      (values || [])
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+    )
+  );
 }

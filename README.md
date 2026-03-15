@@ -1,60 +1,74 @@
-# WhatsApp Daily Action Plan System
+# WhatsApp Action Plan System
 
-Automated system that captures WhatsApp Business messages and generates daily AI-powered action plans.
+This app captures WhatsApp Business messages, stores them in Supabase, replies from a secured dashboard, and can now let approved operators trigger Composio-powered tools directly from WhatsApp.
 
 ## Features
-- 📨 Real-time WhatsApp message capture via webhook
-- 🗄️ PostgreSQL database (Supabase) for message storage
-- 🤖 AI-powered daily analysis with GPT-4
-- ⏰ Scheduled daily action plans (7 PM UTC)
-- 📱 WhatsApp digest delivery
+- Real-time WhatsApp webhook ingestion
+- Supabase-backed message history and outbound logging
+- OpenAI-powered chat agent replies
+- Operator-only Composio tool execution with in-chat auth links
+- Approval gating for sensitive/write actions
+- Settings dashboard for profile, agent, toolkit, and automation controls
+- Daily action-plan cron flow
 
 ## Architecture
-```
-WhatsApp → Webhook → Supabase → Daily Cron → AI Analysis → WhatsApp Digest
+```text
+WhatsApp -> Webhook -> Supabase -> Agent orchestration -> WhatsApp reply
+                                  -> Composio sessions/tools
+                                  -> Daily analyzer cron
 ```
 
 ## Setup
 
-### 1. Database (Supabase)
-Run schema.sql in Supabase SQL Editor
+### 1. Database
+Run [schema.sql](schema.sql) in Supabase SQL Editor.
+
+This creates:
+- `whatsapp_messages`
+- `daily_action_plans`
+- `app_settings`
+- `tool_identities`
+- `tool_connections`
+- `tool_runs`
+- `tool_approvals`
+- `tool_auth_sessions`
 
 ### 2. Deploy to Vercel
 - Connect this repo
-- Set environment variables (see .env.example)
-- Deploy automatically
+- Add the environment variables from `.env.example`
+- Redeploy after every env var change
 
-### 3. Configure WhatsApp Webhook
-Update webhook URL in Meta Business Suite:
+### 3. Configure WhatsApp webhook
+Set the callback URL in Meta Business Suite to:
+
 `https://your-vercel-app.vercel.app/api/whatsapp/webhook`
 
-Use the same `WHATSAPP_VERIFY_TOKEN` value in Meta during webhook verification.
+Use the same `WHATSAPP_VERIFY_TOKEN` value during Meta webhook verification.
 
 ## Environment Variables
-See `.env.example` for all required variables.
+See `.env.example` for the full list.
 
-### Auth Setup
-- `NEON_AUTH_BASE_URL` - Your Neon Auth base URL
-- `NEON_AUTH_COOKIE_SECRET` - A strong secret used to sign cached auth cookies
-- `GET/POST /api/auth/[...path]` is used by the Neon Auth integration
-- The dashboard root `/` is protected and redirects to `/auth/sign-in`
-- User signup is disabled in the app UI; create/manage users from Neon Auth
+Important groups:
+- Auth: `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`
+- Supabase: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
+- WhatsApp: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_VERIFY_TOKEN`
+- OpenAI: `OPENAI_API_KEY`
+- Composio: `COMPOSIO_API_KEY`, `COMPOSIO_CALLBACK_BASE_URL`
 
-## WhatsApp agent permissions
-
-If the auto-reply agent fails with **(#10) Application does not have permission**, the access token needs `whatsapp_business_management` and `whatsapp_business_messaging`. Generate a System User token with those permissions and set it as `WHATSAPP_ACCESS_TOKEN`. In development, add recipients as test numbers in WhatsApp API Setup. See [docs/whatsapp-agent-permissions.md](docs/whatsapp-agent-permissions.md).
+## Composio operator mode
+- Tool execution is operator-only in v1
+- Add approved operator WhatsApp numbers in Settings
+- Enable the desired toolkits in Settings
+- Connect each toolkit from Settings or let the agent send a connect link in WhatsApp
+- Sensitive actions require an explicit `confirm` message before execution
 
 ## API Endpoints
-- `POST /api/whatsapp/webhook` - Receives WhatsApp webhooks
-- `GET /api/cron/daily-analyzer` - Daily analysis (Vercel Cron)
-
-## Database Schema
-- `whatsapp_messages` - Stores all incoming messages
-- `daily_action_plans` - Stores generated action plans
+- `POST /api/whatsapp/webhook` - receive WhatsApp events
+- `GET /api/whatsapp/webhook` - Meta verification
+- `GET /api/messages` - thread polling for the dashboard
+- `GET /api/cron/daily-analyzer` - daily analysis run
 
 ## Notes
-- The webhook now supports Meta verification via `GET /api/whatsapp/webhook`
-- Incoming messages are deduplicated using WhatsApp's external message ID
-- The root dashboard is an authenticated inbox for reviewing and replying to chats
-
-Deployed on Vercel | Database on Supabase | Powered by Composio + OpenAI
+- Incoming messages are deduplicated by WhatsApp external message ID
+- Outbound dashboard replies are stored in `whatsapp_messages`
+- Operator chats can use Composio-backed tool execution; customer chats stay on the normal support reply path

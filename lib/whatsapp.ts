@@ -66,17 +66,19 @@ export function getConfigStatus() {
     phoneId: Boolean(process.env.WHATSAPP_PHONE_ID),
     whatsappToken: Boolean(process.env.WHATSAPP_ACCESS_TOKEN),
     whatsappRecipient: Boolean(process.env.WHATSAPP_RECIPIENT_PHONE),
-  openAiKey: Boolean(process.env.OPENAI_API_KEY),
-  cronSecret: Boolean(process.env.CRON_SECRET),
-  neonAuthBaseUrl: Boolean(process.env.NEON_AUTH_BASE_URL),
-  neonAuthCookieSecret: Boolean(process.env.NEON_AUTH_COOKIE_SECRET),
-  agentEnabled: (() => {
-    if (!process.env.OPENAI_API_KEY) return false;
-    const env = process.env.ENABLE_AUTO_REPLY_AGENT;
-    if (env === 'false' || env === '0' || env === 'no') return false;
-    return true;
-  })(),
-};
+    openAiKey: Boolean(process.env.OPENAI_API_KEY),
+    composioApiKey: Boolean(process.env.COMPOSIO_API_KEY),
+    composioCallbackBaseUrl: Boolean(process.env.COMPOSIO_CALLBACK_BASE_URL),
+    cronSecret: Boolean(process.env.CRON_SECRET),
+    neonAuthBaseUrl: Boolean(process.env.NEON_AUTH_BASE_URL),
+    neonAuthCookieSecret: Boolean(process.env.NEON_AUTH_COOKIE_SECRET),
+    agentEnabled: (() => {
+      if (!process.env.OPENAI_API_KEY) return false;
+      const env = process.env.ENABLE_AUTO_REPLY_AGENT;
+      if (env === 'false' || env === '0' || env === 'no') return false;
+      return true;
+    })(),
+  };
 }
 
 export async function insertInboundMessages(messages: StoredMessage[]) {

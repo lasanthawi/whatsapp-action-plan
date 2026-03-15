@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import {
   buildConversationTurns,
-  generateAgentReply,
   getAgentDisabledReason,
   type AgentCapabilitiesContext,
   type BusinessProfileContext,
 } from '@/lib/chat-agent';
-import { getAgentCapabilities, getWhatsAppProfile } from '@/lib/settings';
+import { generateOperatorAwareReply } from '@/lib/operator-agent';
+import {
+  getAgentCapabilities,
+  getComposioSettings,
+  getWhatsAppProfile,
+  type ComposioSettings,
+} from '@/lib/settings';
 import {
   countStatuses,
   countWebhookMessages,
@@ -73,14 +78,17 @@ export async function POST(req: NextRequest) {
     let agentError: string | undefined;
     let capabilities: AgentCapabilitiesContext | undefined;
     let businessProfile: BusinessProfileContext | undefined;
+    let composioSettings: ComposioSettings | undefined;
 
     try {
-      const [capabilitySettings, profileSettings] = await Promise.all([
+      const [capabilitySettings, profileSettings, composioSettingsResult] = await Promise.all([
         getAgentCapabilities(),
         getWhatsAppProfile(),
+        getComposioSettings(),
       ]);
       capabilities = capabilitySettings;
       businessProfile = profileSettings;
+      composioSettings = composioSettingsResult;
     } catch (settingsError: unknown) {
       const msg =
         settingsError instanceof Error
@@ -128,22 +136,35 @@ export async function POST(req: NextRequest) {
                 ).map((h) => ({ direction: h.direction, message_text: h.message_text }))
               )
             : [];
-          const replyText = await generateAgentReply({
+          const reply = await generateOperatorAwareReply({
+            phone: contactPhone,
             contactName: latest.contact_name || contactPhone,
             latestMessage: latestText,
             recentTurns: turns,
             capabilities,
             businessProfile,
+            composioSettings:
+              composioSettings || {
+                composioEnabled: false,
+                composioApiKeyPresent: false,
+                operatorPhoneAllowlist: [],
+                enabledToolkits: [],
+                toolExecutionMode: 'operator_only',
+                approvalRequiredActions: [],
+                defaultToolTimeoutMs: 30000,
+                toolResultVerbosity: 'brief',
+                autoExecuteReads: true,
+              },
           });
 
-          if (replyText) {
+          if (reply.replyText) {
             await sendTextReply({
               to: contactPhone,
-              body: replyText,
+              body: reply.replyText,
               contactName: latest.contact_name,
             });
             autoReplied.push(contactPhone);
-            console.log(`[Webhook] Auto-replied to ${contactPhone}`);
+            console.log(`[Webhook] Auto-replied to ${contactPhone} via ${reply.mode}`);
           } else {
             agentError = agentError || 'Agent returned empty reply';
           }

@@ -46,3 +46,82 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_app_settings_updated ON app_settings(updated_at DESC);
+
+-- Tool identities map WhatsApp operators to Composio users
+CREATE TABLE IF NOT EXISTS tool_identities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone VARCHAR(50) NOT NULL UNIQUE,
+    composio_user_id VARCHAR(255) NOT NULL UNIQUE,
+    role VARCHAR(50) NOT NULL DEFAULT 'operator',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tool_identities_phone ON tool_identities(phone);
+
+-- Toolkit connection state for each operator phone
+CREATE TABLE IF NOT EXISTS tool_connections (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone VARCHAR(50) NOT NULL,
+    toolkit VARCHAR(100) NOT NULL,
+    connected_account_id VARCHAR(255),
+    auth_config_id VARCHAR(255),
+    status VARCHAR(50) NOT NULL DEFAULT 'inactive',
+    last_verified_at TIMESTAMPTZ,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(phone, toolkit)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tool_connections_phone ON tool_connections(phone);
+CREATE INDEX IF NOT EXISTS idx_tool_connections_toolkit ON tool_connections(toolkit);
+
+-- Audit log for every tool execution attempt
+CREATE TABLE IF NOT EXISTS tool_runs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    requester_phone VARCHAR(50) NOT NULL,
+    toolkit VARCHAR(100) NOT NULL,
+    tool_slug VARCHAR(255) NOT NULL,
+    arguments_summary TEXT,
+    result_summary TEXT,
+    status VARCHAR(50) NOT NULL,
+    approval_state VARCHAR(50) NOT NULL DEFAULT 'not_required',
+    duration_ms INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tool_runs_phone_created ON tool_runs(requester_phone, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tool_runs_status ON tool_runs(status);
+
+-- Pending approvals for sensitive/write actions
+CREATE TABLE IF NOT EXISTS tool_approvals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    requester_phone VARCHAR(50) NOT NULL,
+    toolkit VARCHAR(100) NOT NULL,
+    tool_slug VARCHAR(255) NOT NULL,
+    action_title TEXT NOT NULL,
+    arguments_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tool_approvals_phone_status ON tool_approvals(requester_phone, status, created_at DESC);
+
+-- Pending in-chat auth sessions waiting for operator to finish the connect link
+CREATE TABLE IF NOT EXISTS tool_auth_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    requester_phone VARCHAR(50) NOT NULL,
+    toolkit VARCHAR(100) NOT NULL,
+    composio_user_id VARCHAR(255) NOT NULL,
+    redirect_url TEXT,
+    callback_context JSONB NOT NULL DEFAULT '{}'::jsonb,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tool_auth_sessions_phone_status ON tool_auth_sessions(requester_phone, status, created_at DESC);

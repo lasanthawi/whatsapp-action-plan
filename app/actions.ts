@@ -4,11 +4,15 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 import { auth } from '@/lib/auth/server';
+import { disconnectToolkit, listConnectedAccounts, startConnectLink } from '@/lib/composio';
 import {
   saveAgentCapabilities,
+  saveComposioSettings,
   saveAutomatedTasks,
   saveWhatsAppProfile,
+  getComposioSettings,
 } from '@/lib/settings';
+import { upsertToolConnection } from '@/lib/tool-store';
 import { sendTextReply } from '@/lib/whatsapp';
 
 function readValue(formData: FormData, key: string) {
@@ -123,4 +127,129 @@ export async function saveAutomatedTasksAction(formData: FormData) {
   });
   revalidatePath('/settings');
   redirect('/settings?updated=tasks');
+}
+
+function parseLines(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(/\r?\n|,/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+export async function saveComposioSettingsAction(formData: FormData) {
+  await auth.getSession();
+  const bool = (v: string) => v === 'on' || v === 'true' || v === '1';
+
+  await saveComposioSettings({
+    composioEnabled: bool(formData.get('composioEnabled') as string),
+    operatorPhoneAllowlist: parseLines(readValue(formData, 'operatorPhoneAllowlist')),
+    enabledToolkits: Array.from(formData.getAll('enabledToolkits')).map((value) => String(value)),
+    approvalRequiredActions: parseLines(readValue(formData, 'approvalRequiredActions')),
+    defaultToolTimeoutMs: Number(readValue(formData, 'defaultToolTimeoutMs') || '30000'),
+    toolResultVerbosity:
+      readValue(formData, 'toolResultVerbosity') === 'detailed' ? 'detailed' : 'brief',
+    autoExecuteReads: bool(formData.get('autoExecuteReads') as string),
+  });
+
+  revalidatePath('/settings');
+  redirect('/settings?updated=composio');
+}
+
+export async function connectToolkitAction(formData: FormData) {
+  await auth.getSession();
+
+  const toolkit = readValue(formData, 'toolkit');
+  const settings = await getComposioSettings();
+  const phone = settings.operatorPhoneAllowlist[0];
+
+  if (!phone) {
+    redirect('/settings?error=Add%20an%20operator%20phone%20number%20before%20connecting%20toolkits.');
+  }
+
+  try {
+    const result = await startConnectLink({
+      phone,
+      toolkit,
+      enabledToolkits: settings.enabledToolkits,
+    });
+
+    if (result.redirectUrl) {
+      redirect(result.redirectUrl);
+    }
+
+    redirect('/settings?error=Composio%20did%20not%20return%20a%20connect%20URL.');
+  } catch (error: any) {
+    const message = error?.message || 'Failed to start toolkit connection.';
+    redirect(`/settings?error=${encodeURIComponent(message)}`);
+  }
+}
+
+export async function disconnectToolkitAction(formData: FormData) {
+  await auth.getSession();
+
+  const toolkit = readValue(formData, 'toolkit');
+  const settings = await getComposioSettings();
+  const phone = settings.operatorPhoneAllowlist[0];
+
+  if (!phone) {
+    redirect('/settings?error=Add%20an%20operator%20phone%20number%20before%20disconnecting%20toolkits.');
+  }
+
+  try {
+    await disconnectToolkit({
+      phone,
+      toolkit,
+      enabledToolkits: settings.enabledToolkits,
+    });
+    await upsertToolConnection({
+      phone,
+      toolkit,
+      status: 'inactive',
+      connectedAccountId: null,
+      authConfigId: null,
+      lastVerifiedAt: new Date().toISOString(),
+      metadata: {},
+    });
+    revalidatePath('/settings');
+    redirect('/settings?updated=disconnect');
+  } catch (error: any) {
+    const message = error?.message || 'Failed to disconnect toolkit.';
+    redirect(`/settings?error=${encodeURIComponent(message)}`);
+  }
+}
+
+export async function refreshToolkitStatusesAction() {
+  await auth.getSession();
+
+  const settings = await getComposioSettings();
+  const phone = settings.operatorPhoneAllowlist[0];
+  if (!phone) {
+    redirect('/settings?error=Add%20an%20operator%20phone%20number%20before%20refreshing%20connections.');
+  }
+
+  try {
+    const accounts = await listConnectedAccounts(phone, settings.enabledToolkits);
+    await Promise.all(
+      accounts.map((account) =>
+        upsertToolConnection({
+          phone,
+          toolkit: account.toolkit,
+          status: account.isActive ? 'active' : account.status || 'inactive',
+          connectedAccountId: account.connectedAccountId,
+          authConfigId: account.authConfigId,
+          lastVerifiedAt: new Date().toISOString(),
+          metadata: {},
+        })
+      )
+    );
+    revalidatePath('/settings');
+    redirect('/settings?updated=toolkit-status');
+  } catch (error: any) {
+    const message = error?.message || 'Failed to refresh toolkit statuses.';
+    redirect(`/settings?error=${encodeURIComponent(message)}`);
+  }
 }

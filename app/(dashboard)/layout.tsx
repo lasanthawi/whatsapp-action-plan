@@ -42,6 +42,7 @@ export default async function DashboardLayout({
     ['Supabase', config.supabaseUrl && config.supabaseKey],
     ['WhatsApp', config.phoneId && config.whatsappToken && config.verifyToken],
     ['OpenAI', config.openAiKey],
+    ['Composio', config.composioApiKey],
     ['Neon Auth', config.neonAuthBaseUrl && config.neonAuthCookieSecret],
     ['Auto-reply agent', config.agentEnabled],
   ] as const;
